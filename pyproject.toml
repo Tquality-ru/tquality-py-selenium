@@ -36,6 +36,21 @@ version_scheme = "only-version"
 [tool.hatch.build.targets.wheel]
 packages = ["src/tquality_selenium"]
 
+# В sdist кладем только источники и документацию.
+# Иначе CI-артефакты (.uv-cache, .venv) засасываются со внешними симлинками.
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "src",
+    "tests",
+    "schema",
+    "scripts",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CONTRIBUTING.md",
+    "pyproject.toml",
+]
+
 [tool.hatch.metadata]
 allow-direct-references = true
 

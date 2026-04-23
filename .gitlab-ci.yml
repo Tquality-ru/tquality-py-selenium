@@ -74,7 +74,11 @@ tests:macos:
 
 mirror-to-github:
   stage: release
-  image: alpine/git:latest
+  # alpine/git имеет ENTRYPOINT ["git"], из-за чего обычные shell-команды
+  # обертываются в git и падают. Пустой entrypoint восстанавливает sh.
+  image:
+    name: alpine/git:latest
+    entrypoint: [""]
   before_script: []
   cache: []
   variables:
