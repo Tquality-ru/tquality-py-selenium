@@ -5,18 +5,22 @@ stages:
 default:
   image: python:3.12-slim
   before_script:
+    # git нужен hatch-vcs для вычисления версии из тега при editable-install.
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends git
     - pip install --quiet uv
-    - uv sync --frozen || uv sync
+    - uv sync
   cache:
     key:
       files:
-        - uv.lock
+        - pyproject.toml
     paths:
       - .venv/
       - ~/.cache/uv/
 
 variables:
   UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
+  # Полный клон: hatch-vcs требует доступ к тегам для вычисления версии.
+  GIT_DEPTH: 0
 
 # Статический анализ типов - не требует браузера, Linux-runner.
 mypy:
@@ -51,7 +55,7 @@ tests:macos:
   image: null  # macos-runner - это shell-executor, не Docker
   before_script:
     - command -v uv >/dev/null || { echo "uv не установлен на macos-runner"; exit 1; }
-    - uv sync --frozen || uv sync
+    - uv sync
   cache: []
   script:
     - uv run pytest -v -m "macos or safari or edge" --junitxml=report.xml
@@ -87,12 +91,10 @@ mirror-to-github:
 # Публикация в GitLab Package Registry на git-теге vX.Y.Z.
 # Версия пакета берется из git-тега (hatch-vcs), поэтому десинхронизация
 # пакета и тега невозможна и отдельная проверка не нужна.
-# GIT_DEPTH: 0 - полный клон, иначе hatch-vcs не увидит тег.
 publish:
   stage: release
-  variables:
-    GIT_DEPTH: 0
   before_script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends git
     - pip install --quiet uv
   cache: []
   script:
@@ -115,9 +117,8 @@ publish:
 # Раскомментируйте, когда PYPI_API_TOKEN будет добавлен в Settings -> CI/CD.
 #publish-pypi:
 #  stage: release
-#  variables:
-#    GIT_DEPTH: 0
 #  before_script:
+#    - apt-get update -qq && apt-get install -y -qq --no-install-recommends git
 #    - pip install --quiet uv
 #  cache: []
 #  script:
