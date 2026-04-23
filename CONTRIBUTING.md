@@ -100,23 +100,20 @@ uv build
 
 ## Релиз
 
-Перед релизом обновите версию в `pyproject.toml` и закоммитьте изменение.
-Затем создайте git-тег, совпадающий с версией:
+Версия пакета берется из последнего git-тега вида `vX.Y.Z` через
+`hatch-vcs`. В `pyproject.toml` версия не указывается (поле `dynamic`),
+поэтому рассинхронизация тега и пакета невозможна.
 
 ```bash
-# 1. Обновите version в pyproject.toml
-# 2. Закоммитьте:
-git commit -am "[Core] Release v0.2.0"
-# 3. Поставьте тег:
 git tag -a v0.2.0 -m "v0.2.0"
 git push origin master --tags
 ```
 
 Push тега `vX.Y.Z` триггерит два CI-джоба в stage `release`:
 
-- **`publish`** - сборка и публикация в GitLab Package Registry
+- **`publish`** - сборка (`uv build` получает версию из тега через
+  `hatch-vcs`) и публикация в GitLab Package Registry
   (`https://git.tquality.ru/frameworks/python/tquality-py-selenium/-/packages`).
-  Проверяет совпадение версии в `pyproject.toml` и тега.
 - **`mirror-to-github`** - зеркалирует репозиторий в
   https://github.com/Tquality-ru/tquality-py-selenium.
 

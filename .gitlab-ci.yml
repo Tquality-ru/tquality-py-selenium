@@ -85,20 +85,17 @@ mirror-to-github:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
 
 # Публикация в GitLab Package Registry на git-теге vX.Y.Z.
-# Проверяет, что версия в pyproject.toml совпадает с тегом.
+# Версия пакета берется из git-тега (hatch-vcs), поэтому десинхронизация
+# пакета и тега невозможна и отдельная проверка не нужна.
+# GIT_DEPTH: 0 - полный клон, иначе hatch-vcs не увидит тег.
 publish:
   stage: release
+  variables:
+    GIT_DEPTH: 0
   before_script:
     - pip install --quiet uv
   cache: []
   script:
-    - TAG_VERSION="${CI_COMMIT_TAG#v}"
-    - PY_VERSION="$(uv run --no-sync python -c 'import tomllib,pathlib;print(tomllib.loads(pathlib.Path(\"pyproject.toml\").read_text())[\"project\"][\"version\"])')"
-    - >
-      test "$TAG_VERSION" = "$PY_VERSION" || {
-        echo "Версия в pyproject.toml ($PY_VERSION) не совпадает с тегом ($TAG_VERSION)";
-        exit 1;
-      }
     - uv build
     - >
       uv publish
@@ -118,18 +115,13 @@ publish:
 # Раскомментируйте, когда PYPI_API_TOKEN будет добавлен в Settings -> CI/CD.
 #publish-pypi:
 #  stage: release
+#  variables:
+#    GIT_DEPTH: 0
 #  before_script:
 #    - pip install --quiet uv
 #  cache: []
 #  script:
 #    - test -n "$PYPI_API_TOKEN" || { echo "PYPI_API_TOKEN не задан"; exit 1; }
-#    - TAG_VERSION="${CI_COMMIT_TAG#v}"
-#    - PY_VERSION="$(uv run --no-sync python -c 'import tomllib,pathlib;print(tomllib.loads(pathlib.Path(\"pyproject.toml\").read_text())[\"project\"][\"version\"])')"
-#    - >
-#      test "$TAG_VERSION" = "$PY_VERSION" || {
-#        echo "Версия в pyproject.toml ($PY_VERSION) не совпадает с тегом ($TAG_VERSION)";
-#        exit 1;
-#      }
 #    - uv build
 #    - >
 #      uv publish
