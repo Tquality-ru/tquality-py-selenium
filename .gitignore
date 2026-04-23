@@ -14,3 +14,4 @@ logs/
 uv.lock
 .idea/
 .vscode/
+report.xml
