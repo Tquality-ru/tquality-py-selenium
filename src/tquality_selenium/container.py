@@ -1,14 +1,51 @@
-"""DI-контейнер Selenium-интеграции.
+"""Composition root: `SeleniumServices`.
 
-Регистрирует SeleniumConfig, Logger (из ядра), BrowserService. Функция
-`wire_core_integrations()` связывает ядро с этим контейнером: после ее
-вызова `step()` из ядра использует Logger из контейнера, а CRITICAL шаги
-делают скриншоты через активный WebDriver.
+Класс собирает все сервисы фреймворка как DI-контейнер (dependency-injector).
+Чтобы расширить или заменить любой сервис - наследуйтесь и переопределите
+нужный провайдер. Метод `setup()` связывает резолверы ядра с этим контейнером
+и должен вызываться один раз на старте тестовой сессии (обычно в conftest.py).
+
+### Пример: добавить свой сервис
+
+```python
+from tquality_selenium import SeleniumServices
+from dependency_injector import providers
+
+from my_project.element_factory import ElementFactory
+
+class ProjectServices(SeleniumServices):
+    element_factory = providers.Singleton(ElementFactory)
+```
+
+### Пример: заменить BrowserService
+
+```python
+class ProjectServices(SeleniumServices):
+    browser = providers.ContextLocalSingleton(
+        MyBrowserService, config=SeleniumServices.config,
+    )
+```
+
+### Composition root в conftest.py
+
+```python
+from my_project.services import ProjectServices
+
+ProjectServices.setup()
+
+
+@pytest.fixture(autouse=True)
+def browser():
+    ProjectServices.browser()
+    yield
+    ProjectServices.browser().quit()
+    ProjectServices.browser.reset()
+    ProjectServices.logger.reset()
+```
 """
 from __future__ import annotations
 
 from dependency_injector import containers, providers
-from selenium.webdriver.remote.webdriver import WebDriver
 
 from tquality_core import (
     Logger,
@@ -21,8 +58,12 @@ from tquality_selenium.config import SeleniumConfig
 from tquality_selenium.screenshot_provider import SeleniumScreenshotProvider
 
 
-class Container(containers.DeclarativeContainer):
-    """Базовый контейнер. Наследуйте для добавления своих сервисов."""
+class SeleniumServices(containers.DeclarativeContainer):
+    """Composition root для Selenium-фреймворка.
+
+    Наследуйте, чтобы добавить или заменить сервисы. Вызывайте
+    `setup()` один раз в conftest.py.
+    """
 
     config: providers.Singleton[SeleniumConfig] = providers.Singleton(SeleniumConfig)
     logger: providers.ContextLocalSingleton[Logger] = (
@@ -32,27 +73,20 @@ class Container(containers.DeclarativeContainer):
         providers.ContextLocalSingleton(BrowserService, config=config)
     )
 
+    @classmethod
+    def setup(cls) -> None:
+        """Связать резолверы ядра с этим классом сервисов.
 
-def wire_core_integrations(container: type[Container] = Container) -> None:
-    """Связать сервисы контейнера с резолверами ядра.
-
-    Вызывайте один раз при старте тестовой сессии (в conftest.py)
-    как composition root. Проект, который наследует `Container`, должен
-    передать свой подкласс, иначе резолверы ядра будут указывать на
-    пустые провайдеры базового контейнера.
-
-    ```python
-    # conftest.py
-    from framework import Container
-    from tquality_selenium import wire_core_integrations
-
-    wire_core_integrations(Container)
-    ```
-    """
-    set_logger_resolver(lambda: container.logger())
-    set_screenshot_provider(
-        SeleniumScreenshotProvider(
-            driver_resolver=lambda: container.browser().driver,
-            availability_check=is_browser_started,
+        Использует `cls.logger` и `cls.browser`, чтобы подклассы с
+        переопределенными провайдерами работали корректно.
+        """
+        set_logger_resolver(lambda: cls.logger())
+        set_screenshot_provider(
+            SeleniumScreenshotProvider(
+                driver_resolver=lambda: cls.browser().driver,
+                availability_check=is_browser_started,
+            )
         )
-    )
+
+
+__all__ = ["SeleniumServices"]
