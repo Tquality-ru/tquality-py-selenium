@@ -12,13 +12,13 @@
 - Safari - только macOS.
 - undetected-chrome - там, где установлен Chrome.
 
-Проверка доступности браузера в текущей ОС выполняется при создании
-`BrowserService`, а не при валидации конфига. Если браузер недоступен -
-тест упадет с понятной ошибкой вместо загадочного селениумного traceback.
+Проверка доступности браузера в текущей ОС выполняется через `OSUtils`
+при создании `BrowserService`, а не при валидации конфига. Если браузер
+недоступен - тест упадет с понятной ошибкой вместо загадочного
+селениумного traceback.
 """
 from __future__ import annotations
 
-import sys
 from enum import Enum
 
 from tquality_core import BaseConfig
@@ -32,30 +32,6 @@ class BrowserType(str, Enum):
     EDGE = "edge"
     SAFARI = "safari"
     UNDETECTED_CHROME = "undetected-chrome"
-
-
-def _is_macos() -> bool:
-    return sys.platform == "darwin"
-
-
-def _is_windows() -> bool:
-    return sys.platform == "win32"
-
-
-# Карта: браузер -> множество платформ, где он официально поддерживается.
-# Используется BrowserService для fail-fast проверки при запуске.
-_BROWSER_OS_SUPPORT: dict[BrowserType, set[str]] = {
-    BrowserType.CHROME: {"linux", "darwin", "win32"},
-    BrowserType.FIREFOX: {"linux", "darwin", "win32"},
-    BrowserType.EDGE: {"darwin", "win32"},
-    BrowserType.SAFARI: {"darwin"},
-    BrowserType.UNDETECTED_CHROME: {"linux", "darwin", "win32"},
-}
-
-
-def is_browser_supported_on_current_os(browser: BrowserType) -> bool:
-    """Проверить, поддерживается ли браузер в текущей ОС."""
-    return sys.platform in _BROWSER_OS_SUPPORT[browser]
 
 
 class SeleniumConfig(BaseConfig):

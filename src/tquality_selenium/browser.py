@@ -26,7 +26,8 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.safari.options import Options as SafariOptions
 
-from tquality_selenium.config import BrowserType, is_browser_supported_on_current_os
+from tquality_selenium.config import BrowserType
+from tquality_selenium.os_utils import OSUtils
 
 if TYPE_CHECKING:
     from tquality_selenium.config import SeleniumConfig
@@ -77,7 +78,7 @@ class BrowserService:
 
     def _check_os_support(self) -> None:
         browser = self._config.browser
-        if not is_browser_supported_on_current_os(browser):
+        if not OSUtils.is_browser_supported_on_current_os(browser):
             raise BrowserNotSupportedError(
                 f"Браузер {browser.value} не поддерживается в ОС {sys.platform}. "
                 f"Запустите тесты на совместимой платформе или выберите другой "
