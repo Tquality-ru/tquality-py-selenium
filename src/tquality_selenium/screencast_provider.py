@@ -9,6 +9,7 @@ Selenium WebDriver thread-safe для read-операций (screenshots - HTTP)
 """
 from __future__ import annotations
 
+import contextvars
 import io
 import threading
 from typing import Callable
@@ -42,13 +43,20 @@ class SeleniumScreencastProvider:
         return "image/gif"
 
     def start(self) -> None:
-        """Запустить фоновый сбор кадров. Повторный вызов игнорируется."""
+        """Запустить фоновый сбор кадров. Повторный вызов игнорируется.
+
+        Поток стартует с копией текущего `contextvars.Context`, чтобы
+        `ContextLocalSingleton` и `is_browser_started` видели уже созданный
+        в главном потоке BrowserService - иначе тред открыл бы второе окно.
+        """
         if self._thread is not None and self._thread.is_alive():
             return
         self._frames = []
         self._stop_event = threading.Event()
+        ctx = contextvars.copy_context()
         self._thread = threading.Thread(
-            target=self._capture_loop, daemon=True,
+            target=lambda: ctx.run(self._capture_loop),
+            daemon=True,
         )
         self._thread.start()
 
@@ -66,14 +74,19 @@ class SeleniumScreencastProvider:
         return self._to_gif(frames)
 
     def _capture_loop(self) -> None:
-        """Тикает с интервалом `frame_interval` и накапливает скриншоты."""
+        """Тикает с интервалом `frame_interval` и накапливает скриншоты.
+
+        Пока сессия драйвера неактивна - просто ждем следующего тика.
+        Не создаем новый драйвер и не блокируем главный поток.
+        """
         elapsed = 0.0
         while not self._stop_event.is_set() and elapsed < self._max_duration:
-            try:
-                png: bytes = self._driver_resolver().get_screenshot_as_png()
-                self._frames.append(png)
-            except Exception:  # noqa: BLE001 - драйвер может быть невалиден
-                pass
+            if self._is_available_cb():
+                try:
+                    png: bytes = self._driver_resolver().get_screenshot_as_png()
+                    self._frames.append(png)
+                except Exception:  # noqa: BLE001 - сессия могла закрыться
+                    pass
             self._stop_event.wait(self._frame_interval)
             elapsed += self._frame_interval
 
