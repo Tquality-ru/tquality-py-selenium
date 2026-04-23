@@ -68,6 +68,30 @@ uv run pytest -v
 
 Тесты запускаются автоматически в CI на каждый MR.
 
+## Обновление JSON-схемы
+
+Схема `schema/config.schema.json` описывает все поля `SeleniumConfig`
+(включая унаследованные от `BaseConfig`) и публикуется через jsDelivr:
+
+```
+https://cdn.jsdelivr.net/gh/Tquality-ru/tquality-py-selenium@master/schema/config.schema.json
+```
+
+Если вы изменили поля `SeleniumConfig`, обновите схему:
+
+```bash
+uv run tquality-selenium-config schema
+```
+
+Коммит без обновленной схемы провалит тест
+`test_committed_schema_matches_selenium_config` в CI.
+
+Для инициализации `config.json` в чужом проекте со значениями по умолчанию:
+
+```bash
+uv run tquality-selenium-config init
+```
+
 ## Сборка пакета
 
 ```bash
@@ -126,12 +150,17 @@ tquality-py-selenium = { index = "tquality" }
 tquality-py-selenium/
 ├── .gitlab-ci.yml          # CI: mypy + pytest на MR и master, зеркалирование на тег
 ├── pyproject.toml          # конфиг проекта, mypy, зависимости (core - git-зависимость)
+├── schema/
+│   └── config.schema.json  # JSON-схема SeleniumConfig (публикуется через jsDelivr)
 ├── scripts/
 │   └── install-hooks.sh
 ├── src/tquality_selenium/
 │   ├── browser.py          # BrowserService, is_browser_started
+│   ├── cli.py              # CLI: tquality-selenium-config init / schema
 │   ├── config.py           # SeleniumConfig, BrowserType
 │   ├── container.py        # DI-контейнер, wire_core_integrations()
+│   ├── os_utils.py         # OSUtils: карта поддержки браузеров ОС
+│   ├── schema.py           # генератор JSON-схемы для SeleniumConfig
 │   ├── screenshot_provider.py
 │   ├── elements/
 │   │   ├── base_element.py # концретный BaseElement поверх core.BaseElement

@@ -1,0 +1,67 @@
+{
+  "$defs": {
+    "BrowserType": {
+      "description": "Поддерживаемые типы браузеров.",
+      "enum": [
+        "chrome",
+        "firefox",
+        "edge",
+        "safari",
+        "undetected-chrome"
+      ],
+      "title": "BrowserType",
+      "type": "string"
+    }
+  },
+  "description": "Конфигурация для Selenium-тестов.\n\nПорядок разрешения настроек наследуется от `BaseConfig`: аргументы\nконструктора > env vars > .env > цепочка `config.json` от cwd до корня\nworkspace > значения по умолчанию.",
+  "properties": {
+    "base_url": {
+      "default": "http://localhost",
+      "title": "Base Url",
+      "type": "string"
+    },
+    "default_timeout": {
+      "default": 10.0,
+      "title": "Default Timeout",
+      "type": "number"
+    },
+    "log_dir": {
+      "default": "logs",
+      "title": "Log Dir",
+      "type": "string"
+    },
+    "highlight_elements": {
+      "default": false,
+      "title": "Highlight Elements",
+      "type": "boolean"
+    },
+    "browser": {
+      "$ref": "#/$defs/BrowserType",
+      "default": "chrome"
+    },
+    "headless": {
+      "default": true,
+      "title": "Headless",
+      "type": "boolean"
+    },
+    "page_load_timeout": {
+      "default": 30.0,
+      "title": "Page Load Timeout",
+      "type": "number"
+    },
+    "window_width": {
+      "default": 1920,
+      "title": "Window Width",
+      "type": "integer"
+    },
+    "window_height": {
+      "default": 1080,
+      "title": "Window Height",
+      "type": "integer"
+    }
+  },
+  "title": "SeleniumConfig",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cdn.jsdelivr.net/gh/Tquality-ru/tquality-py-selenium@master/schema/config.schema.json"
+}

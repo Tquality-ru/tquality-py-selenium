@@ -12,6 +12,9 @@ dependencies = [
     "undetected-chromedriver>=3.5",
 ]
 
+[project.scripts]
+tquality-selenium-config = "tquality_selenium.cli:main"
+
 [dependency-groups]
 dev = [
     "mypy>=1.11",
