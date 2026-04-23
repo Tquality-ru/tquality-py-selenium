@@ -1,0 +1,158 @@
+stages:
+  - check
+  - release
+
+default:
+  # Астраловский образ: python 3.12 + uv + git (через buildpack-deps) из
+  # коробки. Экономит pip install uv и apt-get install git на каждом job.
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm
+  before_script:
+    - uv sync
+  cache:
+    key:
+      files:
+        - pyproject.toml
+    paths:
+      - .venv/
+      - .uv-cache/
+      - .mypy_cache/
+      - .pytest_cache/
+  # Новый pipeline на тот же MR отменяет предыдущий.
+  interruptible: true
+
+variables:
+  UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
+  # Полный клон: hatch-vcs требует доступ к тегам для вычисления версии.
+  GIT_DEPTH: 0
+
+# Статический анализ типов - не требует браузера, Linux-runner.
+mypy:
+  stage: check
+  script:
+    - uv run mypy
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Юнит-тесты без реальных браузеров. Linux-runner.
+tests:linux:
+  stage: check
+  script:
+    - uv run pytest -v -m "not macos" --junitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+    paths:
+      - report.xml
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Healthcheck всех 5 браузеров на macos-runner (Chrome, Firefox, Edge,
+# Safari, undetected-chrome). Только macOS имеет все браузеры вместе.
+tests:macos:
+  stage: check
+  tags:
+    - macos
+  image: null  # macos-runner - это shell-executor, не Docker
+  before_script:
+    - command -v uv >/dev/null || { echo "uv не установлен на macos-runner"; exit 1; }
+    - uv sync
+  cache: []
+  script:
+    - uv run pytest -v -m "macos" --junitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+    paths:
+      - report.xml
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  # Если macos-runner временно недоступен - пайплайн не падает целиком.
+  allow_failure: true
+
+mirror-to-github:
+  stage: release
+  # alpine/git имеет ENTRYPOINT ["git"], из-за чего обычные shell-команды
+  # обертываются в git и падают. Пустой entrypoint восстанавливает sh.
+  image:
+    name: alpine/git:latest
+    entrypoint: [""]
+  before_script: []
+  cache: []
+  # GIT_STRATEGY: none - делаем свой bare-клон, иначе runner клонирует
+  # только ref тега и мы не увидим ветку master.
+  variables:
+    GIT_STRATEGY: none
+  # Релизные jobs не отменяем: у них побочные эффекты (push на GitHub).
+  interruptible: false
+  # Публикуем на GitHub только master + сам тег: релизы выходят из master,
+  # feature-ветки и временные refs на зеркале не нужны. Тег обязан быть
+  # на master, иначе зеркало уедет рассинхронизированным.
+  script:
+    - test -n "$GITHUB_MIRROR_TOKEN" || { echo "GITHUB_MIRROR_TOKEN is not set"; exit 1; }
+    - git clone --bare "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" repo.git
+    - cd repo.git
+    - >
+      git merge-base --is-ancestor "refs/tags/${CI_COMMIT_TAG}" refs/heads/master || {
+        echo "Тег ${CI_COMMIT_TAG} не в истории master - зеркалирование пропущено";
+        exit 1;
+      }
+    - >
+      git push
+      "https://x-access-token:${GITHUB_MIRROR_TOKEN}@github.com/Tquality-ru/tquality-py-selenium.git"
+      "refs/heads/master:refs/heads/master"
+      "refs/tags/${CI_COMMIT_TAG}:refs/tags/${CI_COMMIT_TAG}"
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+
+# Публикация в GitLab Package Registry на git-теге vX.Y.Z.
+# Версия пакета берется из git-тега (hatch-vcs), поэтому десинхронизация
+# пакета и тега невозможна и отдельная проверка не нужна.
+publish:
+  stage: release
+  # uv и git уже в image, venv не нужен (uv build не использует env проекта).
+  before_script: []
+  cache: []
+  interruptible: false
+  script:
+    - uv build
+    - >
+      uv publish
+      --publish-url "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi"
+      --username gitlab-ci-token
+      --password "$CI_JOB_TOKEN"
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 month
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+
+# Публикация в публичный PyPI (https://pypi.org) на git-теге vX.Y.Z.
+# Требует переменную PYPI_API_TOKEN в настройках CI/CD (protected, masked).
+# Временно отключено: токен публичного PyPI еще не выпущен.
+# Раскомментируйте, когда PYPI_API_TOKEN будет добавлен в Settings -> CI/CD.
+#publish-pypi:
+#  stage: release
+#  before_script: []
+#  cache: []
+#  interruptible: false
+#  script:
+#    - test -n "$PYPI_API_TOKEN" || { echo "PYPI_API_TOKEN не задан"; exit 1; }
+#    - uv build
+#    - >
+#      uv publish
+#      --username __token__
+#      --password "$PYPI_API_TOKEN"
+#  artifacts:
+#    paths:
+#      - dist/
+#    expire_in: 1 month
+#  rules:
+#    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/

@@ -1,0 +1,92 @@
+[project]
+name = "tquality-py-selenium"
+dynamic = ["version"]
+description = "Selenium-интеграция поверх tquality-py-core"
+requires-python = ">=3.12"
+authors = [{name = "ООО «Точка качества»"}]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+dependencies = [
+    "tquality-py-core @ git+https://github.com/Tquality-ru/tquality-py-core.git@v0.1.1",
+    "selenium>=4.25",
+    "undetected-chromedriver>=3.5",
+    # Python 3.12 удалил distutils из stdlib, а undetected-chromedriver
+    # импортирует distutils.version.LooseVersion. setuptools >= 60 возвращает
+    # distutils как shim.
+    "setuptools>=60",
+]
+
+[project.scripts]
+tquality-selenium-config = "tquality_selenium.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.11",
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+# Версия берется из последнего git-тега вида vX.Y.Z.
+# Сборка вне git-репо (например, из sdist) возьмет версию из PKG-INFO.
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+version_scheme = "only-version"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tquality_selenium"]
+
+# В sdist кладем только источники и документацию.
+# Иначе CI-артефакты (.uv-cache, .venv) засасываются со внешними симлинками.
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "src",
+    "tests",
+    "schema",
+    "scripts",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CONTRIBUTING.md",
+    "pyproject.toml",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.pytest.ini_options]
+markers = [
+    "macos: тесты требуют macOS-runner (все 5 браузеров установлены)",
+    "windows: тесты требуют Windows",
+    "linux: тесты требуют Linux",
+    "chrome: тесты требуют установленный Chrome",
+    "firefox: тесты требуют установленный Firefox",
+    "edge: тесты требуют установленный Edge",
+    "safari: тесты требуют установленный Safari (только macOS)",
+    "undetected: тесты требуют undetected-chromedriver и Chrome",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src/tquality_selenium", "tests"]
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = [
+    "undetected_chromedriver",
+    "dependency_injector",
+    "dependency_injector.*",
+]
+ignore_missing_imports = true
