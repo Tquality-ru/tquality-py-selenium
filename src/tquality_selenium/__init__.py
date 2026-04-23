@@ -1,6 +1,5 @@
 from tquality_core import (
     BaseConfig,
-    BaseForm,
     Locator,
     Logger,
     LogLevel,
@@ -8,33 +7,51 @@ from tquality_core import (
     step,
 )
 
-from tquality_selenium.browser import BrowserService, is_browser_started
+from tquality_selenium.browser import BrowserService
 from tquality_selenium.config import BrowserType, SeleniumConfig
 from tquality_selenium.container import SeleniumServices
 from tquality_selenium.elements import BaseElement, Button, CheckBox, Input, Label
 from tquality_selenium.os_utils import OSUtils
+from tquality_selenium.pages import BaseForm
 from tquality_selenium.screenshot_provider import SeleniumScreenshotProvider
+from tquality_selenium.services import (
+    CollectionFactory,
+    DomField,
+    ElementFactory,
+    ElementJsActions,
+    ElementWaiter,
+    JsActions,
+    PseudoElement,
+    Waiter,
+)
 
 __all__ = [
-    # Реэкспорты из ядра
+    # Core re-exports
     "BaseConfig",
-    "BaseForm",
     "Locator",
     "Logger",
     "LogLevel",
     "StringUtils",
     "step",
-    # Selenium-специфичные
+    # Selenium-specific
     "BaseElement",
+    "BaseForm",
     "BrowserService",
     "BrowserType",
     "Button",
     "CheckBox",
+    "CollectionFactory",
+    "DomField",
+    "ElementFactory",
+    "ElementJsActions",
+    "ElementWaiter",
     "Input",
+    "JsActions",
     "Label",
     "OSUtils",
+    "PseudoElement",
     "SeleniumConfig",
     "SeleniumScreenshotProvider",
     "SeleniumServices",
-    "is_browser_started",
+    "Waiter",
 ]

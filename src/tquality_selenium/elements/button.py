@@ -1,13 +1,13 @@
-"""Кнопка - элемент с явным действием `submit` поверх обычного click."""
 from __future__ import annotations
 
 from tquality_selenium.elements.base_element import BaseElement
 
 
 class Button(BaseElement):
-    """Кнопка. Для большинства сценариев используйте `click()`."""
+    """Кнопка. В большинстве случаев - `click()`; для submit-кнопок `submit()`."""
 
     def submit(self) -> None:
-        """Отправить форму, которой принадлежит кнопка."""
+        self._log.info("Submit: %s", self._name)
         self.wait_until_clickable()
-        self._find().submit()
+        with self.js_actions.maybe_highlight():
+            self._find().submit()

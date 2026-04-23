@@ -1,50 +1,57 @@
-"""Базовый элемент Selenium-реализации.
+"""Базовый UI-элемент.
 
-Реализует абстрактный интерфейс `tquality_core.BaseElement` через Selenium.
-От него наследуются конкретные элементы: Button, Label, Input, CheckBox.
+Идентифицируется парой `(by, value)`. Сервисы (browser, logger, waiters,
+js_actions) резолвятся через активный composition root `SeleniumServices`,
+настроенный в `conftest.py` через `YourServices.setup()`.
 
-Каждая операция ленивая: элемент ищется заново перед каждым действием, что
-защищает от stale element references при перерендеринге DOM.
+`element.js_actions` возвращает `ElementJsActions`, привязанный к данному
+элементу через ленивый резолвер (`self._find`), что снимает stale reference
+между действиями.
 """
 from __future__ import annotations
 
-from typing import Callable
+from typing import Any
 
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
 
-from tquality_core import BaseElement as CoreBaseElement
-from tquality_core import Locator
-
-from tquality_selenium.browser import BrowserService
+from tquality_selenium.services.js_actions import ElementJsActions
 
 
-class BaseElement(CoreBaseElement):
-    """Selenium-элемент, найденный по `Locator(by, value)`."""
-
-    def __init__(
-        self,
-        locator: Locator,
-        name: str = "",
-        *,
-        browser_resolver: Callable[[], BrowserService],
-        default_timeout: float = 10.0,
-    ) -> None:
-        super().__init__(locator, name)
-        self._browser_resolver = browser_resolver
-        self._default_timeout = default_timeout
+class BaseElement:
+    def __init__(self, by: str, value: str, name: str = "") -> None:
+        self._by = by
+        self._value = value
+        self._name = name or f"{self.__class__.__name__}({by}={value!r})"
 
     @property
-    def _browser(self) -> BrowserService:
-        return self._browser_resolver()
+    def _browser(self) -> Any:
+        from tquality_selenium.browser import BrowserService
+        from tquality_selenium.container import SeleniumServices
+        return SeleniumServices.get_service(BrowserService)
+
+    @property
+    def _log(self) -> Any:
+        from tquality_core import Logger
+        from tquality_selenium.container import SeleniumServices
+        return SeleniumServices.get_service(Logger)
+
+    @property
+    def _element_waiter(self) -> Any:
+        from tquality_selenium.container import SeleniumServices
+        from tquality_selenium.services.element_waiter import ElementWaiter
+        return SeleniumServices.get_service(ElementWaiter)
+
+    @property
+    def js_actions(self) -> ElementJsActions:
+        """JS-действия, привязанные к этому элементу. Пример:
+        `button.js_actions.click()`, `input.js_actions.scroll_into_view()`.
+        Резолвер элемента ленивый - stale reference не возникает."""
+        return ElementJsActions(self._find)
 
     def _find(self) -> WebElement:
-        return self._browser.find_element(self._locator.by, self._locator.value)
-
-    def _timeout(self, timeout: float | None) -> float:
-        return timeout if timeout is not None else self._default_timeout
+        result: WebElement = self._browser.find_element(self._by, self._value)
+        return result
 
     @property
     def text(self) -> str:
@@ -59,7 +66,7 @@ class BaseElement(CoreBaseElement):
 
     @property
     def is_present(self) -> bool:
-        elements = self._browser.find_elements(self._locator.by, self._locator.value)
+        elements = self._browser.find_elements(self._by, self._value)
         return len(elements) > 0
 
     @property
@@ -70,35 +77,41 @@ class BaseElement(CoreBaseElement):
         value = self._find().get_attribute(attr)
         return value if value is None else str(value)
 
-    def click(self) -> None:
-        self.wait_until_clickable()
-        self._find().click()
-
     def wait_for_displayed(self, timeout: float | None = None) -> BaseElement:
-        return self.wait_until_visible(timeout)
+        self._element_waiter.until_visible(
+            self._by, self._value, self._name, timeout,
+        )
+        return self
 
     def wait_until_visible(self, timeout: float | None = None) -> BaseElement:
-        WebDriverWait(self._browser.driver, self._timeout(timeout)).until(
-            EC.visibility_of_element_located(self._locator),
+        self._element_waiter.until_visible(
+            self._by, self._value, self._name, timeout,
         )
         return self
 
     def wait_until_clickable(self, timeout: float | None = None) -> BaseElement:
-        WebDriverWait(self._browser.driver, self._timeout(timeout)).until(
-            EC.element_to_be_clickable(self._locator),
+        self._element_waiter.until_clickable(
+            self._by, self._value, self._name, timeout,
         )
         return self
 
     def wait_until_invisible(self, timeout: float | None = None) -> BaseElement:
-        WebDriverWait(self._browser.driver, self._timeout(timeout)).until(
-            EC.invisibility_of_element_located(self._locator),
+        self._element_waiter.until_invisible(
+            self._by, self._value, self._name, timeout,
         )
         return self
 
     def wait_until_not_present(self, timeout: float | None = None) -> BaseElement:
-        by, value = self._locator
-        WebDriverWait(self._browser.driver, self._timeout(timeout)).until(
-            lambda d: not d.find_elements(by, value),
-            f"{self._name} должен исчезнуть из DOM",
+        self._element_waiter.until_not_present(
+            self._by, self._value, self._name, timeout,
         )
         return self
+
+    def click(self) -> None:
+        self._log.info("Click: %s", self._name)
+        self._element_waiter.until_clickable(self._by, self._value, self._name)
+        with self.js_actions.maybe_highlight():
+            self._find().click()
+
+    def __repr__(self) -> str:
+        return self._name

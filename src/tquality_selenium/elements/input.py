@@ -1,4 +1,3 @@
-"""Input - текстовое поле с очисткой и вводом."""
 from __future__ import annotations
 
 from selenium.webdriver.common.keys import Keys
@@ -15,19 +14,21 @@ class Input(BaseElement):
         return self.get_attribute("value") or ""
 
     def clear(self) -> None:
-        """Очистить содержимое поля."""
-        self._find().clear()
+        self._log.info("Clear: %s", self._name)
+        with self.js_actions.maybe_highlight():
+            self._find().clear()
 
     def type_text(self, text: str) -> None:
         """Заменить содержимое поля на `text`.
 
-        Использует `Ctrl+A` для выделения - защищает от stale element, если
-        `clear()` вызовет перерендер DOM между поиском и вводом.
+        Использует Ctrl+A для выделения - защищает от stale element, если
+        между поиском и вводом DOM перерендерится.
         """
-        self.wait_until_visible()
+        self._log.info("Type into %s: %s", self._name, text)
+        self._element_waiter.until_visible(self._by, self._value, self._name)
         self._find().send_keys(Keys.CONTROL, "a", Keys.NULL, text)
 
     def append_text(self, text: str) -> None:
-        """Добавить `text` в конец текущего значения."""
+        self._log.info("Append to %s: %s", self._name, text)
         self.wait_until_visible()
         self._find().send_keys(text)
