@@ -10,6 +10,10 @@ dependencies = [
     "tquality-py-core @ git+https://github.com/Tquality-ru/tquality-py-core.git@v0.1.1",
     "selenium>=4.25",
     "undetected-chromedriver>=3.5",
+    # Python 3.12 удалил distutils из stdlib, а undetected-chromedriver
+    # импортирует distutils.version.LooseVersion. setuptools >= 60 возвращает
+    # distutils как shim.
+    "setuptools>=60",
 ]
 
 [project.scripts]
