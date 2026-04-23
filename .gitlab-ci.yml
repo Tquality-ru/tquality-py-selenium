@@ -111,3 +111,33 @@ publish:
     expire_in: 1 month
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+
+# Публикация в публичный PyPI (https://pypi.org) на git-теге vX.Y.Z.
+# Требует переменную PYPI_API_TOKEN в настройках CI/CD (protected, masked).
+# Временно отключено: токен публичного PyPI еще не выпущен.
+# Раскомментируйте, когда PYPI_API_TOKEN будет добавлен в Settings -> CI/CD.
+#publish-pypi:
+#  stage: release
+#  before_script:
+#    - pip install --quiet uv
+#  cache: []
+#  script:
+#    - test -n "$PYPI_API_TOKEN" || { echo "PYPI_API_TOKEN не задан"; exit 1; }
+#    - TAG_VERSION="${CI_COMMIT_TAG#v}"
+#    - PY_VERSION="$(uv run --no-sync python -c 'import tomllib,pathlib;print(tomllib.loads(pathlib.Path(\"pyproject.toml\").read_text())[\"project\"][\"version\"])')"
+#    - >
+#      test "$TAG_VERSION" = "$PY_VERSION" || {
+#        echo "Версия в pyproject.toml ($PY_VERSION) не совпадает с тегом ($TAG_VERSION)";
+#        exit 1;
+#      }
+#    - uv build
+#    - >
+#      uv publish
+#      --username __token__
+#      --password "$PYPI_API_TOKEN"
+#  artifacts:
+#    paths:
+#      - dist/
+#    expire_in: 1 month
+#  rules:
+#    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
