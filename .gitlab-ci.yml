@@ -3,11 +3,10 @@ stages:
   - release
 
 default:
-  image: python:3.12-slim
+  # Астраловский образ: python 3.12 + uv + git (через buildpack-deps) из
+  # коробки. Экономит pip install uv и apt-get install git на каждом job.
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm
   before_script:
-    # git нужен hatch-vcs для вычисления версии из тега при editable-install.
-    - apt-get update -qq && apt-get install -y -qq --no-install-recommends git
-    - pip install --quiet uv
     - uv sync
   cache:
     key:
@@ -15,7 +14,11 @@ default:
         - pyproject.toml
     paths:
       - .venv/
-      - ~/.cache/uv/
+      - .uv-cache/
+      - .mypy_cache/
+      - .pytest_cache/
+  # Новый pipeline на тот же MR отменяет предыдущий.
+  interruptible: true
 
 variables:
   UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
@@ -86,6 +89,8 @@ mirror-to-github:
   # только ref тега и мы не увидим ветку master.
   variables:
     GIT_STRATEGY: none
+  # Релизные jobs не отменяем: у них побочные эффекты (push на GitHub).
+  interruptible: false
   # Публикуем на GitHub только master + сам тег: релизы выходят из master,
   # feature-ветки и временные refs на зеркале не нужны. Тег обязан быть
   # на master, иначе зеркало уедет рассинхронизированным.
@@ -111,10 +116,10 @@ mirror-to-github:
 # пакета и тега невозможна и отдельная проверка не нужна.
 publish:
   stage: release
-  before_script:
-    - apt-get update -qq && apt-get install -y -qq --no-install-recommends git
-    - pip install --quiet uv
+  # uv и git уже в image, venv не нужен (uv build не использует env проекта).
+  before_script: []
   cache: []
+  interruptible: false
   script:
     - uv build
     - >
@@ -135,10 +140,9 @@ publish:
 # Раскомментируйте, когда PYPI_API_TOKEN будет добавлен в Settings -> CI/CD.
 #publish-pypi:
 #  stage: release
-#  before_script:
-#    - apt-get update -qq && apt-get install -y -qq --no-install-recommends git
-#    - pip install --quiet uv
+#  before_script: []
 #  cache: []
+#  interruptible: false
 #  script:
 #    - test -n "$PYPI_API_TOKEN" || { echo "PYPI_API_TOKEN не задан"; exit 1; }
 #    - uv build
