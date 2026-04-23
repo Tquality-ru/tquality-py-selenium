@@ -33,19 +33,26 @@ class Container(containers.DeclarativeContainer):
     )
 
 
-def _resolve_driver() -> WebDriver:
-    return Container.browser().driver
-
-
-def wire_core_integrations() -> None:
+def wire_core_integrations(container: type[Container] = Container) -> None:
     """Связать сервисы контейнера с резолверами ядра.
 
-    Вызывайте один раз при старте тестовой сессии (в conftest.py).
+    Вызывайте один раз при старте тестовой сессии (в conftest.py)
+    как composition root. Проект, который наследует `Container`, должен
+    передать свой подкласс, иначе резолверы ядра будут указывать на
+    пустые провайдеры базового контейнера.
+
+    ```python
+    # conftest.py
+    from framework import Container
+    from tquality_selenium import wire_core_integrations
+
+    wire_core_integrations(Container)
+    ```
     """
-    set_logger_resolver(lambda: Container.logger())
+    set_logger_resolver(lambda: container.logger())
     set_screenshot_provider(
         SeleniumScreenshotProvider(
-            driver_resolver=_resolve_driver,
+            driver_resolver=lambda: container.browser().driver,
             availability_check=is_browser_started,
         )
     )
