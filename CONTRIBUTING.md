@@ -68,6 +68,23 @@ uv run pytest -v
 
 Тесты запускаются автоматически в CI на каждый MR.
 
+### Healthcheck браузеров на macOS-runner
+
+Job `tests:macos` запускает smoke-тесты всех 5 браузеров
+(`tests/test_browser_healthcheck.py`). Чтобы они проходили, на runner'е
+нужна разовая настройка:
+
+1. Установить Google Chrome, Firefox, Microsoft Edge - стандартные dmg/pkg.
+2. Включить автоматизацию Safari (требует права администратора):
+   ```bash
+   sudo safaridriver --enable
+   ```
+   Дополнительно в самом Safari: **Settings → Developer → Allow Remote
+   Automation** (опция появляется после включения меню Develop в
+   **Settings → Advanced → Show Develop menu in menu bar**).
+
+Без этих шагов `test_safari_smoke` падает с `SessionNotCreatedException`.
+
 ## Обновление JSON-схемы
 
 Схема `schema/config.schema.json` описывает все поля `SeleniumConfig`

@@ -11,6 +11,7 @@ Safari и Edge доступны только на своих платформа�
 from __future__ import annotations
 
 import contextvars
+import os
 import re
 import shutil
 import subprocess
@@ -47,23 +48,54 @@ def is_browser_started() -> bool:
     return _browser_started.get()
 
 
-def _detect_chrome_version() -> int | None:
-    """Определить мажорную версию установленного Chrome (для uc.Chrome)."""
+def _find_chrome_binary() -> str | None:
+    """Найти исполняемый Chrome/Chromium на текущей ОС.
+
+    undetected-chromedriver ищет только в PATH, что ломает macOS
+    (Chrome в /Applications/) и Windows (Chrome в Program Files).
+    Поэтому на этих платформах явно задаем binary_location.
+    """
     for binary in (
-        "google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
+        "google-chrome", "google-chrome-stable", "chromium",
+        "chromium-browser", "chrome",
     ):
         path = shutil.which(binary)
-        if path is None:
-            continue
-        try:
-            output = subprocess.check_output(
-                [path, "--version"], text=True, timeout=5,
+        if path:
+            return path
+    if sys.platform == "darwin":
+        for candidate in (
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        ):
+            if os.path.exists(candidate):
+                return candidate
+    if sys.platform == "win32":
+        for env in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"):
+            root = os.environ.get(env)
+            if not root:
+                continue
+            candidate = os.path.join(
+                root, "Google", "Chrome", "Application", "chrome.exe",
             )
-        except (subprocess.SubprocessError, OSError):
-            continue
-        match = re.search(r"(\d+)", output)
-        if match:
-            return int(match.group(1))
+            if os.path.exists(candidate):
+                return candidate
+    return None
+
+
+def _detect_chrome_version() -> int | None:
+    """Определить мажорную версию установленного Chrome (для uc.Chrome)."""
+    binary = _find_chrome_binary()
+    if binary is None:
+        return None
+    try:
+        output = subprocess.check_output(
+            [binary, "--version"], text=True, timeout=5,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return None
+    match = re.search(r"(\d+)", output)
+    if match:
+        return int(match.group(1))
     return None
 
 
@@ -110,6 +142,11 @@ class BrowserService:
             import undetected_chromedriver as uc
 
             uc_opts = uc.ChromeOptions()
+            # UC ищет Chrome только в PATH, поэтому на macOS/Windows
+            # задаем binary_location явно, иначе падает TypeError в сеттере.
+            chrome_binary = _find_chrome_binary()
+            if chrome_binary:
+                uc_opts.binary_location = chrome_binary
             if cfg.headless:
                 uc_opts.add_argument("--headless=new")
             uc_opts.add_argument("--no-sandbox")
