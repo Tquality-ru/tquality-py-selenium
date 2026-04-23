@@ -1,6 +1,6 @@
 # tquality-py-selenium
 
-Selenium-интеграция поверх [tquality-py-core](https://git.tquality.ru/frameworks/python/tquality-py-core).
+Selenium-интеграция поверх [tquality-py-core](https://github.com/Tquality-ru/tquality-py-core).
 
 Реализует:
 

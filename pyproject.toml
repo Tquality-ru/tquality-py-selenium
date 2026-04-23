@@ -7,7 +7,7 @@ authors = [{name = "ООО «Точка качества»"}]
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 dependencies = [
-    "tquality-py-core @ git+https://git.tquality.ru/frameworks/python/tquality-py-core.git@feature/initial-core",
+    "tquality-py-core @ git+https://github.com/Tquality-ru/tquality-py-core.git@v0.1.1",
     "selenium>=4.25",
     "undetected-chromedriver>=3.5",
 ]
