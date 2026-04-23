@@ -13,6 +13,7 @@ from tquality_selenium.container import SeleniumServices
 from tquality_selenium.elements import BaseElement, Button, CheckBox, Input, Label
 from tquality_selenium.os_utils import OSUtils
 from tquality_selenium.pages import BaseForm
+from tquality_selenium.screencast_provider import SeleniumScreencastProvider
 from tquality_selenium.screenshot_provider import SeleniumScreenshotProvider
 from tquality_selenium.services import (
     CollectionFactory,
@@ -51,6 +52,7 @@ __all__ = [
     "OSUtils",
     "PseudoElement",
     "SeleniumConfig",
+    "SeleniumScreencastProvider",
     "SeleniumScreenshotProvider",
     "SeleniumServices",
     "Waiter",

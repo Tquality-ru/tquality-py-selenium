@@ -7,13 +7,15 @@ authors = [{name = "ООО «Точка качества»"}]
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 dependencies = [
-    "tquality-py-core @ git+https://github.com/Tquality-ru/tquality-py-core.git@v0.1.1",
+    "tquality-py-core @ git+https://github.com/Tquality-ru/tquality-py-core.git@v0.1.2",
     "selenium>=4.25",
     "undetected-chromedriver>=3.5",
     # Python 3.12 удалил distutils из stdlib, а undetected-chromedriver
     # импортирует distutils.version.LooseVersion. setuptools >= 60 возвращает
     # distutils как shim.
     "setuptools>=60",
+    # Pillow - для сборки анимированного GIF из кадров screencast'а.
+    "pillow>=10",
 ]
 
 [project.scripts]
@@ -88,5 +90,7 @@ module = [
     "undetected_chromedriver",
     "dependency_injector",
     "dependency_injector.*",
+    "PIL",
+    "PIL.*",
 ]
 ignore_missing_imports = true
