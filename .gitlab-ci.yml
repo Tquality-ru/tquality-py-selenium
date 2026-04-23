@@ -83,3 +83,31 @@ mirror-to-github:
     - git push --mirror github
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+
+# Публикация в GitLab Package Registry на git-теге vX.Y.Z.
+# Проверяет, что версия в pyproject.toml совпадает с тегом.
+publish:
+  stage: release
+  before_script:
+    - pip install --quiet uv
+  cache: []
+  script:
+    - TAG_VERSION="${CI_COMMIT_TAG#v}"
+    - PY_VERSION="$(uv run --no-sync python -c 'import tomllib,pathlib;print(tomllib.loads(pathlib.Path(\"pyproject.toml\").read_text())[\"project\"][\"version\"])')"
+    - >
+      test "$TAG_VERSION" = "$PY_VERSION" || {
+        echo "Версия в pyproject.toml ($PY_VERSION) не совпадает с тегом ($TAG_VERSION)";
+        exit 1;
+      }
+    - uv build
+    - >
+      uv publish
+      --publish-url "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi"
+      --username gitlab-ci-token
+      --password "$CI_JOB_TOKEN"
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 month
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
