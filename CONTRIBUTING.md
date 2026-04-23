@@ -104,9 +104,16 @@ uv build
 `hatch-vcs`. В `pyproject.toml` версия не указывается (поле `dynamic`),
 поэтому рассинхронизация тега и пакета невозможна.
 
+Ставьте тег **только на master** (после merge соответствующего MR).
+`mirror-to-github` публикует на GitHub именно то, что на master, и
+проверяет, что коммит тега достижим из master. Тег на feature-ветке
+провалит зеркалирование.
+
 ```bash
+git checkout master
+git pull
 git tag -a v0.2.0 -m "v0.2.0"
-git push origin master --tags
+git push origin v0.2.0
 ```
 
 Push тега `vX.Y.Z` триггерит два CI-джоба в stage `release`:
@@ -114,8 +121,9 @@ Push тега `vX.Y.Z` триггерит два CI-джоба в stage `release
 - **`publish`** - сборка (`uv build` получает версию из тега через
   `hatch-vcs`) и публикация в GitLab Package Registry
   (`https://git.tquality.ru/frameworks/python/tquality-py-selenium/-/packages`).
-- **`mirror-to-github`** - зеркалирует репозиторий в
-  https://github.com/Tquality-ru/tquality-py-selenium.
+- **`mirror-to-github`** - пушит `master` и сам тег в
+  https://github.com/Tquality-ru/tquality-py-selenium (feature-ветки и
+  служебные refs не зеркалируются).
 
 ### Установка из GitLab Package Registry
 
