@@ -52,9 +52,11 @@ def _find_chrome_binary() -> str | None:
     """Найти исполняемый Chrome/Chromium на текущей ОС.
 
     undetected-chromedriver ищет только в PATH, что ломает macOS
-    (Chrome в /Applications/) и Windows (Chrome в Program Files).
-    Поэтому на этих платформах явно задаем binary_location.
+    (Chrome в /Applications/) и Windows (Chrome в Program Files). Поэтому
+    спрашиваем Selenium Manager - он идет с selenium и умеет находить
+    бинарник на всех поддерживаемых ОС.
     """
+    # 1. PATH (Linux обычно)
     for binary in (
         "google-chrome", "google-chrome-stable", "chromium",
         "chromium-browser", "chrome",
@@ -62,12 +64,24 @@ def _find_chrome_binary() -> str | None:
         path = shutil.which(binary)
         if path:
             return path
+    # 2. Selenium Manager - знает где Chrome на любой ОС
+    try:
+        from selenium.webdriver.common.selenium_manager import SeleniumManager
+
+        result = SeleniumManager().binary_paths(["--browser", "chrome"])
+    except Exception:  # noqa: BLE001 - SeleniumManager может падать по-разному
+        result = {}
+    browser_path = result.get("browser_path")
+    if isinstance(browser_path, str) and os.path.isfile(browser_path):
+        return browser_path
+    # 3. Фолбек на стандартные пути, если Selenium Manager недоступен
     if sys.platform == "darwin":
-        for candidate in (
-            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        for name in (
+            "Google Chrome", "Google Chrome Beta", "Google Chrome Dev",
+            "Google Chrome Canary", "Chromium",
         ):
-            if os.path.exists(candidate):
+            candidate = f"/Applications/{name}.app/Contents/MacOS/{name}"
+            if os.path.isfile(candidate):
                 return candidate
     if sys.platform == "win32":
         for env in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"):
@@ -77,7 +91,7 @@ def _find_chrome_binary() -> str | None:
             candidate = os.path.join(
                 root, "Google", "Chrome", "Application", "chrome.exe",
             )
-            if os.path.exists(candidate):
+            if os.path.isfile(candidate):
                 return candidate
     return None
 
