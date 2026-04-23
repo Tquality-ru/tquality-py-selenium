@@ -56,11 +56,14 @@ allow-direct-references = true
 
 [tool.pytest.ini_options]
 markers = [
-    "macos: тесты требуют macOS (Safari, Edge-on-mac)",
+    "macos: тесты требуют macOS-runner (все 5 браузеров установлены)",
     "windows: тесты требуют Windows",
     "linux: тесты требуют Linux",
-    "safari: тесты требуют установленный Safari",
+    "chrome: тесты требуют установленный Chrome",
+    "firefox: тесты требуют установленный Firefox",
     "edge: тесты требуют установленный Edge",
+    "safari: тесты требуют установленный Safari (только macOS)",
+    "undetected: тесты требуют undetected-chromedriver и Chrome",
 ]
 
 [tool.mypy]

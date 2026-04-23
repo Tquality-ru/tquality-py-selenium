@@ -31,11 +31,11 @@ mypy:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-# Кроссплатформенные тесты без Safari/Edge-on-mac. Linux-runner.
+# Юнит-тесты без реальных браузеров. Linux-runner.
 tests:linux:
   stage: check
   script:
-    - uv run pytest -v -m "not macos and not safari and not edge" --junitxml=report.xml
+    - uv run pytest -v -m "not macos" --junitxml=report.xml
   artifacts:
     when: always
     reports:
@@ -47,7 +47,8 @@ tests:linux:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-# macOS-specific тесты: Safari + Edge-on-mac. Только на macos-runner (tag).
+# Healthcheck всех 5 браузеров на macos-runner (Chrome, Firefox, Edge,
+# Safari, undetected-chrome). Только macOS имеет все браузеры вместе.
 tests:macos:
   stage: check
   tags:
@@ -58,7 +59,7 @@ tests:macos:
     - uv sync
   cache: []
   script:
-    - uv run pytest -v -m "macos or safari or edge" --junitxml=report.xml
+    - uv run pytest -v -m "macos" --junitxml=report.xml
   artifacts:
     when: always
     reports:
