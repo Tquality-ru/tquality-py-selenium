@@ -12,12 +12,19 @@ from __future__ import annotations
 import base64
 import contextvars
 import io
+import logging
 import threading
 import time
 from typing import Any, Callable
 
 from PIL import Image
 from selenium.webdriver.remote.webdriver import WebDriver
+
+_log = logging.getLogger(__name__)
+
+# Флаг процесса: один раз ворнинг о BiDi-фолбеке, чтобы не засорять лог
+# сообщением на каждом кадре. Сбрасывается при новом запуске процесса.
+_BIDI_FALLBACK_WARNED = False
 
 
 class SeleniumScreencastProvider:
@@ -87,6 +94,7 @@ class SeleniumScreencastProvider:
         времени выполнения шага (не влияет скорость `get_screenshot`).
         """
         started = time.monotonic()
+        warned_capture_error = False
         while (
             not self._stop_event.is_set()
             and time.monotonic() - started < self._max_duration
@@ -96,8 +104,14 @@ class SeleniumScreencastProvider:
                     png = self._capture_frame(self._driver_resolver())
                     if png is not None:
                         self._frames.append((png, time.monotonic()))
-                except Exception:  # noqa: BLE001 - сессия могла закрыться
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    if not warned_capture_error:
+                        warned_capture_error = True
+                        _log.warning(
+                            "Screencast: ошибка захвата кадра, "
+                            "оставшиеся кадры будут пропущены если повторится: %s",
+                            exc,
+                        )
             self._stop_event.wait(self._frame_interval)
 
     @staticmethod
@@ -110,15 +124,23 @@ class SeleniumScreencastProvider:
         Firefox, Edge.
 
         Если BiDi недоступен (старый Selenium, Safari) - fallback на
-        классический `get_screenshot_as_png`.
+        классический `get_screenshot_as_png` с предупреждением в лог.
         """
         try:
             bc: Any = driver.browsing_context
             b64 = bc.capture_screenshot(driver.current_window_handle)
             if isinstance(b64, str):
                 return base64.b64decode(b64)
-        except Exception:  # noqa: BLE001 - BiDi может быть недоступен
-            pass
+        except Exception as exc:  # noqa: BLE001 - BiDi может быть недоступен
+            global _BIDI_FALLBACK_WARNED
+            if not _BIDI_FALLBACK_WARNED:
+                _BIDI_FALLBACK_WARNED = True
+                _log.warning(
+                    "BiDi browsingContext.captureScreenshot недоступен (%s); "
+                    "использую классический get_screenshot_as_png - "
+                    "кадры могут блокироваться во время навигации",
+                    exc,
+                )
         return driver.get_screenshot_as_png()
 
     def _to_gif(self, frames: list[tuple[bytes, float]]) -> bytes:

@@ -151,8 +151,13 @@ class ElementJsActions:
         finally:
             try:
                 self._driver.execute_script(remove_script, element)
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc:  # noqa: BLE001
+                # После действия элемент мог исчезнуть (навигация,
+                # перерендер). Не фейлим тест, но не молчим - пусть
+                # будет видно в логах.
+                self._log.warning(
+                    "Не удалось снять highlight (элемент исчез?): %s", exc,
+                )
 
     @contextmanager
     def maybe_highlight(self) -> Iterator[None]:
