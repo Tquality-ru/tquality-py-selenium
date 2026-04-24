@@ -26,11 +26,14 @@ import numpy as np
 from PIL import Image
 from selenium.webdriver.remote.webdriver import WebDriver
 
+from tquality_selenium.config import SeleniumConfig
+
 _log = logging.getLogger(__name__)
 
-# Флаг процесса: один раз ворнинг о BiDi-фолбеке, чтобы не засорять лог
-# сообщением на каждом кадре. Сбрасывается при новом запуске процесса.
+# Процесс-уровневые флаги "один раз ворнинг": не засорять лог на каждый
+# кадр, но и не молчать. Сбрасываются при новом процессе.
 _BIDI_FALLBACK_WARNED = False
+_CDP_FALLBACK_WARNED = False
 
 
 class SeleniumScreencastProvider:
@@ -46,17 +49,14 @@ class SeleniumScreencastProvider:
         self,
         driver_resolver: Callable[[], WebDriver],
         availability_check: Callable[[], bool],
-        frame_interval: float = 0.2,
-        max_duration: float = 120.0,
-        output_fps: int = 10,
-        max_width: int = 1280,
+        config: SeleniumConfig,
     ) -> None:
         self._driver_resolver = driver_resolver
         self._is_available_cb = availability_check
-        self._frame_interval = frame_interval
-        self._max_duration = max_duration
-        self._output_fps = output_fps
-        self._max_width = max_width
+        self._frame_interval = config.screencast_frame_interval
+        self._max_duration = config.screencast_max_duration
+        self._output_fps = config.screencast_fps
+        self._max_width = config.screencast_max_width
         # Пара (PNG-байты, timestamp) - timestamp используется для
         # вычисления длительности показа каждого кадра в итоговом видео.
         self._frames: list[tuple[bytes, float]] = []
@@ -97,7 +97,14 @@ class SeleniumScreencastProvider:
         frames = self._frames
         self._frames = []
         if not frames:
+            _log.warning("Screencast: ни один кадр не захвачен - запись пуста")
             return None
+        duration = frames[-1][1] - frames[0][1]
+        _log.info(
+            "Screencast: %d кадров, %.2fs (%.1f кадр/с)",
+            len(frames), duration,
+            (len(frames) - 1) / duration if duration > 0 else 0,
+        )
         try:
             return self._to_webm(frames)
         except Exception as exc:  # noqa: BLE001
@@ -139,16 +146,21 @@ class SeleniumScreencastProvider:
 
     @staticmethod
     def _capture_frame(driver: WebDriver) -> bytes | None:
-        """Снять кадр через WebDriver BiDi (кросс-браузерный стандарт W3C).
+        """Снять кадр.
 
-        BiDi `browsingContext.captureScreenshot` не ждет document.readyState
-        и не блокируется во время навигации - ловит промежуточные состояния
-        UI включая красные рамки выделения. Работает в Chrome/Chromium,
-        Firefox, Edge.
+        Иерархия способов (по убыванию предпочтительности):
 
-        Если BiDi недоступен (старый Selenium, Safari) - fallback на
-        классический `get_screenshot_as_png` с предупреждением в лог.
+        1. WebDriver BiDi `browsingContext.captureScreenshot` - W3C-стандарт,
+           кросс-браузерный, не ждет document.readyState.
+        2. CDP `Page.captureScreenshot` - только Chromium (Chrome/Edge/UC),
+           не блокируется во время навигации; нужен когда BiDi не включен в
+           capabilities драйвера (напр. undetected-chromedriver).
+        3. Классический `get_screenshot_as_png` - работает везде, но ждет
+           readyState='complete' и может "слепнуть" во время навигации.
+
+        На каждый фолбек пишем warning ровно один раз за процесс.
         """
+        # 1. BiDi
         try:
             bc: Any = driver.browsing_context
             b64 = bc.capture_screenshot(driver.current_window_handle)
@@ -160,10 +172,30 @@ class SeleniumScreencastProvider:
                 _BIDI_FALLBACK_WARNED = True
                 _log.warning(
                     "BiDi browsingContext.captureScreenshot недоступен (%s); "
-                    "использую классический get_screenshot_as_png - "
-                    "кадры могут блокироваться во время навигации",
+                    "пробую CDP / fallback",
                     exc,
                 )
+
+        # 2. CDP (Chromium only)
+        cdp: Any = getattr(driver, "execute_cdp_cmd", None)
+        if cdp is not None:
+            try:
+                result = cdp("Page.captureScreenshot", {"format": "png"})
+                data = result.get("data") if isinstance(result, dict) else None
+                if isinstance(data, str):
+                    return base64.b64decode(data)
+            except Exception as exc:  # noqa: BLE001
+                global _CDP_FALLBACK_WARNED
+                if not _CDP_FALLBACK_WARNED:
+                    _CDP_FALLBACK_WARNED = True
+                    _log.warning(
+                        "CDP Page.captureScreenshot недоступен (%s); "
+                        "использую классический get_screenshot_as_png - "
+                        "кадры могут блокироваться во время навигации",
+                        exc,
+                    )
+
+        # 3. Classic
         return driver.get_screenshot_as_png()
 
     def _to_webm(self, frames: list[tuple[bytes, float]]) -> bytes:

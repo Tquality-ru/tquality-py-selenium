@@ -65,6 +65,26 @@
       "default": 1080,
       "title": "Window Height",
       "type": "integer"
+    },
+    "screencast_fps": {
+      "default": 10,
+      "title": "Screencast Fps",
+      "type": "integer"
+    },
+    "screencast_frame_interval": {
+      "default": 0.2,
+      "title": "Screencast Frame Interval",
+      "type": "number"
+    },
+    "screencast_max_width": {
+      "default": 1280,
+      "title": "Screencast Max Width",
+      "type": "integer"
+    },
+    "screencast_max_duration": {
+      "default": 120.0,
+      "title": "Screencast Max Duration",
+      "type": "number"
     }
   },
   "title": "SeleniumConfig",

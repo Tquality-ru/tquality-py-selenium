@@ -110,6 +110,7 @@ class SeleniumServices(containers.DeclarativeContainer):
             SeleniumScreencastProvider,
             driver_resolver=_resolve_driver_from_active,
             availability_check=_is_browser_started,
+            config=config,
         )
     )
     logger: providers.ContextLocalSingleton[Logger] = (

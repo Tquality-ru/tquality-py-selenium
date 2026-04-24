@@ -47,3 +47,9 @@ class SeleniumConfig(BaseConfig):
     page_load_timeout: float = 30.0
     window_width: int = 1920
     window_height: int = 1080
+
+    # Screencast (LogLevel.WITH_SCREENCAST).
+    screencast_fps: int = 10
+    screencast_frame_interval: float = 0.2
+    screencast_max_width: int = 1280
+    screencast_max_duration: float = 120.0
