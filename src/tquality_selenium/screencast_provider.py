@@ -9,11 +9,12 @@ Selenium WebDriver thread-safe для read-операций (screenshots - HTTP)
 """
 from __future__ import annotations
 
+import base64
 import contextvars
 import io
 import threading
 import time
-from typing import Callable
+from typing import Any, Callable
 
 from PIL import Image
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -92,11 +93,33 @@ class SeleniumScreencastProvider:
         ):
             if self._is_available_cb():
                 try:
-                    png: bytes = self._driver_resolver().get_screenshot_as_png()
-                    self._frames.append((png, time.monotonic()))
+                    png = self._capture_frame(self._driver_resolver())
+                    if png is not None:
+                        self._frames.append((png, time.monotonic()))
                 except Exception:  # noqa: BLE001 - сессия могла закрыться
                     pass
             self._stop_event.wait(self._frame_interval)
+
+    @staticmethod
+    def _capture_frame(driver: WebDriver) -> bytes | None:
+        """Снять кадр через WebDriver BiDi (кросс-браузерный стандарт W3C).
+
+        BiDi `browsingContext.captureScreenshot` не ждет document.readyState
+        и не блокируется во время навигации - ловит промежуточные состояния
+        UI включая красные рамки выделения. Работает в Chrome/Chromium,
+        Firefox, Edge.
+
+        Если BiDi недоступен (старый Selenium, Safari) - fallback на
+        классический `get_screenshot_as_png`.
+        """
+        try:
+            bc: Any = driver.browsing_context
+            b64 = bc.capture_screenshot(driver.current_window_handle)
+            if isinstance(b64, str):
+                return base64.b64decode(b64)
+        except Exception:  # noqa: BLE001 - BiDi может быть недоступен
+            pass
+        return driver.get_screenshot_as_png()
 
     def _to_gif(self, frames: list[tuple[bytes, float]]) -> bytes:
         """Собрать GIF из PNG-кадров через Pillow.
