@@ -8,9 +8,9 @@ from tquality_selenium.schema import SELENIUM_SCHEMA_URL, generate_schema
 
 _CORE_FIELDS = {"base_url", "default_timeout", "log_dir", "highlight_elements"}
 _SELENIUM_FIELDS = {
-    "browser", "headless", "page_load_timeout", "window_width", "window_height",
-    "screencast_fps", "screencast_frame_interval",
-    "screencast_max_width", "screencast_max_duration",
+    "browser",
+    "chrome", "firefox", "edge", "safari", "undetected_chrome",
+    "screencast",
 }
 
 

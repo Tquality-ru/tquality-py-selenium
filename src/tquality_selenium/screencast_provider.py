@@ -53,10 +53,10 @@ class SeleniumScreencastProvider:
     ) -> None:
         self._driver_resolver = driver_resolver
         self._is_available_cb = availability_check
-        self._frame_interval = config.screencast_frame_interval
-        self._max_duration = config.screencast_max_duration
-        self._output_fps = config.screencast_fps
-        self._max_width = config.screencast_max_width
+        self._frame_interval = config.screencast.frame_interval
+        self._max_duration = config.screencast.max_duration
+        self._output_fps = config.screencast.fps
+        self._max_width = config.screencast.max_width
         # Пара (PNG-байты, timestamp) - timestamp используется для
         # вычисления длительности показа каждого кадра в итоговом видео.
         self._frames: list[tuple[bytes, float]] = []
