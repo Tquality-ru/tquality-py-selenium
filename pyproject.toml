@@ -14,8 +14,14 @@ dependencies = [
     # импортирует distutils.version.LooseVersion. setuptools >= 60 возвращает
     # distutils как shim.
     "setuptools>=60",
-    # Pillow - для сборки анимированного GIF из кадров screencast'а.
+    # Pillow - даунскейл кадров screencast'а перед кодированием в webm.
     "pillow>=10",
+    # imageio + imageio-ffmpeg - кодирование кадров в webm (VP9). ffmpeg-
+    # бинарник ставится вместе с imageio-ffmpeg (Linux/macOS/Windows), внешних
+    # зависимостей не требует.
+    "imageio>=2.34",
+    "imageio-ffmpeg>=0.5",
+    "numpy>=1.26",
 ]
 
 [project.scripts]
@@ -92,5 +98,7 @@ module = [
     "dependency_injector.*",
     "PIL",
     "PIL.*",
+    "imageio",
+    "imageio.*",
 ]
 ignore_missing_imports = true
