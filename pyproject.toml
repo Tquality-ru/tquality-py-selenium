@@ -7,13 +7,21 @@ authors = [{name = "ООО «Точка качества»"}]
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 dependencies = [
-    "tquality-py-core @ git+https://github.com/Tquality-ru/tquality-py-core.git@v0.1.1",
+    "tquality-py-core @ git+https://github.com/Tquality-ru/tquality-py-core.git@v0.1.3",
     "selenium>=4.25",
     "undetected-chromedriver>=3.5",
     # Python 3.12 удалил distutils из stdlib, а undetected-chromedriver
     # импортирует distutils.version.LooseVersion. setuptools >= 60 возвращает
     # distutils как shim.
     "setuptools>=60",
+    # Pillow - даунскейл кадров screencast'а перед кодированием в webm.
+    "pillow>=10",
+    # imageio + imageio-ffmpeg - кодирование кадров в webm (VP9). ffmpeg-
+    # бинарник ставится вместе с imageio-ffmpeg (Linux/macOS/Windows), внешних
+    # зависимостей не требует.
+    "imageio>=2.34",
+    "imageio-ffmpeg>=0.5",
+    "numpy>=1.26",
 ]
 
 [project.scripts]
@@ -88,5 +96,9 @@ module = [
     "undetected_chromedriver",
     "dependency_injector",
     "dependency_injector.*",
+    "PIL",
+    "PIL.*",
+    "imageio",
+    "imageio.*",
 ]
 ignore_missing_imports = true

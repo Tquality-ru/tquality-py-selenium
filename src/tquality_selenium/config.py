@@ -1,27 +1,28 @@
 """Конфигурация для Selenium-интеграции.
 
-Расширяет `BaseConfig` из `tquality-py-core` полями, специфичными для
-веб-драйверов: тип браузера, headless-режим, размер окна, таймаут загрузки
-страницы.
+Расширяет `BaseConfig` из `tquality-py-core` блоками, сгруппированными
+по смыслу:
 
-### Совместимость с ОС
+- `browser` - выбор активного браузера (один из enum `BrowserType`).
+- `chrome`, `firefox`, `edge`, `safari`, `undetected_chrome` - per-browser
+  настройки. Все живут одновременно, поэтому можно подготовить валидный
+  конфиг для каждого браузера и переключаться одной строкой `browser: ...`.
+- `screencast` - параметры webm-записи для шагов уровня WITH_SCREENCAST.
 
-- Chrome, Firefox - кроссплатформенные.
-- Edge - Windows и macOS (на Linux официально не поддерживается, хотя
-  технически запускается, если Edge установлен вручную).
-- Safari - только macOS.
-- undetected-chrome - там, где установлен Chrome.
+Активный блок достается через `config.active_browser` -
+`BrowserService` читает оттуда headless/размер окна/таймаут навигации.
 
-Проверка доступности браузера в текущей ОС выполняется через `OSUtils`
-при создании `BrowserService`, а не при валидации конфига. Если браузер
-недоступен - тест упадет с понятной ошибкой вместо загадочного
-селениумного traceback.
+### Совместимость браузера и ОС
+
+- Chrome, Firefox, undetected-chrome - кроссплатформенные.
+- Edge - Windows и macOS.
+- Safari - только macOS (headless не поддерживается, флаг игнорируется).
 """
 from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from tquality_core import BaseConfig
 
@@ -36,12 +37,35 @@ class BrowserType(str, Enum):
     UNDETECTED_CHROME = "undetected-chrome"
 
 
+class BrowserConfig(BaseModel):
+    """Настройки одной браузерной реализации.
+
+    Одна и та же структура для всех браузеров; Safari игнорирует
+    `headless` (в нем этот режим не поддерживается).
+    """
+
+    headless: bool = True
+    window_width: int = Field(default=1920, ge=320, le=7680)
+    window_height: int = Field(default=1080, ge=240, le=4320)
+    page_load_timeout: float = Field(default=30.0, ge=1.0)
+
+
+class ScreencastConfig(BaseModel):
+    """Параметры видеозаписи шагов уровня WITH_SCREENCAST."""
+
+    fps: int = Field(default=10, ge=1, le=60)
+    frame_interval: float = Field(default=0.2, ge=0.05, le=2.0)
+    max_width: int = Field(default=1280, ge=320, le=3840)
+    max_duration: float = Field(default=120.0, ge=1.0, le=600.0)
+
+
 class SeleniumConfig(BaseConfig):
     """Конфигурация для Selenium-тестов.
 
-    Порядок разрешения настроек наследуется от `BaseConfig`: аргументы
-    конструктора > env vars > .env > цепочка `config.json` от cwd до корня
-    workspace > значения по умолчанию.
+    Структурирована по логическим блокам: per-browser и feature-specific.
+    Это даёт возможность заранее описать все браузеры в одном конфиге
+    и переключаться между ними только через поле `browser`, без
+    переписывания остальной секции.
     """
 
     browser: BrowserType = Field(
@@ -52,36 +76,18 @@ class SeleniumConfig(BaseConfig):
             "undetected-chrome использует undetected-chromedriver."
         ),
     )
-    headless: bool = Field(
-        default=True,
-        description=(
-            "Запускать браузер в headless-режиме (без UI). Safari игнорирует "
-            "флаг - не поддерживает headless."
-        ),
-    )
-    page_load_timeout: float = Field(
-        default=30.0,
-        description=(
-            "Таймаут ожидания полной загрузки страницы при навигации (сек). "
-            "Должен быть не меньше 1 - иначе нереалистично для любой страницы."
-        ),
-        ge=1.0,
-    )
-    window_width: int = Field(
-        default=1920,
-        description=(
-            "Ширина окна браузера в пикселях. Диапазон от минимального "
-            "отображаемого размера (320) до 8K (7680)."
-        ),
-        ge=320,
-        le=7680,
-    )
-    window_height: int = Field(
-        default=1080,
-        description=(
-            "Высота окна браузера в пикселях. Диапазон от минимального "
-            "отображаемого размера (240) до 8K (4320)."
-        ),
-        ge=240,
-        le=4320,
-    )
+
+    chrome: BrowserConfig = Field(default_factory=BrowserConfig)
+    firefox: BrowserConfig = Field(default_factory=BrowserConfig)
+    edge: BrowserConfig = Field(default_factory=BrowserConfig)
+    safari: BrowserConfig = Field(default_factory=BrowserConfig)
+    undetected_chrome: BrowserConfig = Field(default_factory=BrowserConfig)
+
+    screencast: ScreencastConfig = Field(default_factory=ScreencastConfig)
+
+    @property
+    def active_browser(self) -> BrowserConfig:
+        """Конфиг того браузера, что выбран в `self.browser`."""
+        attr = self.browser.value.replace("-", "_")
+        result: BrowserConfig = getattr(self, attr)
+        return result

@@ -2,7 +2,7 @@
 
 Точка входа: `tquality-selenium-config`. Доступные подкоманды:
 
-- `init` - сгенерировать config.json в корне проекта со значениями по умолчанию
+- `init` - сгенерировать config.json5 в корне проекта со значениями по умолчанию
   SeleniumConfig (включая поля, унаследованные от BaseConfig)
 - `schema` - сгенерировать/обновить schema/config.schema.json (для мейнтейнеров)
 """
@@ -38,7 +38,7 @@ def _default_config_dict() -> dict[str, Any]:
 
 
 def cmd_init(args: argparse.Namespace) -> int:
-    """Сгенерировать config.json со значениями по умолчанию."""
+    """Сгенерировать config.json5 со значениями по умолчанию."""
     target_dir = Path(args.path).resolve() if args.path else _find_project_root()
     target_file = target_dir / CONFIG_FILENAME
 
@@ -77,16 +77,16 @@ def main(argv: list[str] | None = None) -> int:
 
     p_init = subparsers.add_parser(
         "init",
-        help="Сгенерировать config.json со значениями по умолчанию",
+        help="Сгенерировать config.json5 со значениями по умолчанию",
     )
     p_init.add_argument(
         "--path",
-        help="Каталог, в котором создать config.json (по умолчанию - корень проекта)",
+        help="Каталог, в котором создать config.json5 (по умолчанию - корень проекта)",
     )
     p_init.add_argument(
         "--force",
         action="store_true",
-        help="Перезаписать существующий config.json",
+        help="Перезаписать существующий config.json5",
     )
     p_init.set_defaults(func=cmd_init)
 

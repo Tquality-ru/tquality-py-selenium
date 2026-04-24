@@ -65,23 +65,27 @@ from typing import Any, Iterator, TypeVar
 
 from dependency_injector import containers, providers
 
-from tquality_core import (
-    Logger,
-    set_logger_resolver,
-    set_screenshot_provider,
-)
+from tquality_core import Logger, set_logger_resolver
 
 from tquality_selenium.browser import (
     BrowserService,
     is_browser_started as _is_browser_started,
 )
 from tquality_selenium.config import SeleniumConfig
+from tquality_selenium.screencast_provider import SeleniumScreencastProvider
 from tquality_selenium.screenshot_provider import SeleniumScreenshotProvider
 from tquality_selenium.services.collection_factory import CollectionFactory
 from tquality_selenium.services.element_factory import ElementFactory
 from tquality_selenium.services.element_waiter import ElementWaiter
 from tquality_selenium.services.js_actions import JsActions
 from tquality_selenium.services.waiter import Waiter
+
+
+def _resolve_driver_from_active() -> Any:
+    """Резолвит WebDriver через активный composition root (см. setup())."""
+    if _active_services is None:
+        raise RuntimeError("SeleniumServices.setup() не вызван")
+    return _active_services.browser().driver
 
 T = TypeVar("T")
 
@@ -106,11 +110,31 @@ class SeleniumServices(containers.DeclarativeContainer):
     """Composition root для Selenium-фреймворка."""
 
     config: providers.Singleton[SeleniumConfig] = providers.Singleton(SeleniumConfig)
-    logger: providers.ContextLocalSingleton[Logger] = (
-        providers.ContextLocalSingleton(Logger, config=config)
-    )
     browser: providers.ContextLocalSingleton[BrowserService] = (
         providers.ContextLocalSingleton(BrowserService, config=config)
+    )
+    screenshot_provider: providers.Singleton[SeleniumScreenshotProvider] = (
+        providers.Singleton(
+            SeleniumScreenshotProvider,
+            driver_resolver=_resolve_driver_from_active,
+            availability_check=_is_browser_started,
+        )
+    )
+    screencast_provider: providers.Singleton[SeleniumScreencastProvider] = (
+        providers.Singleton(
+            SeleniumScreencastProvider,
+            driver_resolver=_resolve_driver_from_active,
+            availability_check=_is_browser_started,
+            config=config,
+        )
+    )
+    logger: providers.ContextLocalSingleton[Logger] = (
+        providers.ContextLocalSingleton(
+            Logger,
+            config=config,
+            screenshot_provider=screenshot_provider,
+            screencast_provider=screencast_provider,
+        )
     )
     waiter: providers.ContextLocalSingleton[Waiter] = (
         providers.ContextLocalSingleton(Waiter, config=config)
@@ -130,11 +154,11 @@ class SeleniumServices(containers.DeclarativeContainer):
     def setup(cls, config_dir: Path | str | None = None) -> None:
         """Composition root: зарегистрировать контейнер как активный.
 
-        ``config_dir`` - стартовая директория поиска ``config.json``.
+        ``config_dir`` - стартовая директория поиска ``config.json5``.
         Если не задана, берется директория вызывающего файла (обычно
         `conftest.py` проекта). Это устраняет зависимость от CWD pytest:
         тест можно запускать из корня репо, а конфиги проекта окажутся
-        закрыты правильно.
+        подхвачены правильно.
 
         Использует `cls.logger` / `cls.browser`, чтобы подклассы с
         переопределенными провайдерами работали корректно.
@@ -154,12 +178,6 @@ class SeleniumServices(containers.DeclarativeContainer):
         global _active_services
         _active_services = cls
         set_logger_resolver(lambda: cls.logger())
-        set_screenshot_provider(
-            SeleniumScreenshotProvider(
-                driver_resolver=lambda: cls.browser().driver,
-                availability_check=_is_browser_started,
-            )
-        )
 
     @classmethod
     def get_service(cls, service_type: type[T]) -> T:

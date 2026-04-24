@@ -1,5 +1,37 @@
 {
   "$defs": {
+    "BrowserConfig": {
+      "description": "Настройки одной браузерной реализации.\n\nОдна и та же структура для всех браузеров; Safari игнорирует\n`headless` (в нем этот режим не поддерживается).",
+      "properties": {
+        "headless": {
+          "default": true,
+          "title": "Headless",
+          "type": "boolean"
+        },
+        "window_width": {
+          "default": 1920,
+          "maximum": 7680,
+          "minimum": 320,
+          "title": "Window Width",
+          "type": "integer"
+        },
+        "window_height": {
+          "default": 1080,
+          "maximum": 4320,
+          "minimum": 240,
+          "title": "Window Height",
+          "type": "integer"
+        },
+        "page_load_timeout": {
+          "default": 30.0,
+          "minimum": 1.0,
+          "title": "Page Load Timeout",
+          "type": "number"
+        }
+      },
+      "title": "BrowserConfig",
+      "type": "object"
+    },
     "BrowserType": {
       "description": "Поддерживаемые типы браузеров.",
       "enum": [
@@ -11,27 +43,69 @@
       ],
       "title": "BrowserType",
       "type": "string"
+    },
+    "ScreencastConfig": {
+      "description": "Параметры видеозаписи шагов уровня WITH_SCREENCAST.",
+      "properties": {
+        "fps": {
+          "default": 10,
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Fps",
+          "type": "integer"
+        },
+        "frame_interval": {
+          "default": 0.2,
+          "maximum": 2.0,
+          "minimum": 0.05,
+          "title": "Frame Interval",
+          "type": "number"
+        },
+        "max_width": {
+          "default": 1280,
+          "maximum": 3840,
+          "minimum": 320,
+          "title": "Max Width",
+          "type": "integer"
+        },
+        "max_duration": {
+          "default": 120.0,
+          "maximum": 600.0,
+          "minimum": 1.0,
+          "title": "Max Duration",
+          "type": "number"
+        }
+      },
+      "title": "ScreencastConfig",
+      "type": "object"
     }
   },
-  "description": "Конфигурация для Selenium-тестов.\n\nПорядок разрешения настроек наследуется от `BaseConfig`: аргументы\nконструктора > env vars > .env > цепочка `config.json` от cwd до корня\nworkspace > значения по умолчанию.",
+  "description": "Конфигурация для Selenium-тестов.\n\nСтруктурирована по логическим блокам: per-browser и feature-specific.\nЭто даёт возможность заранее описать все браузеры в одном конфиге\nи переключаться между ними только через поле `browser`, без\nпереписывания остальной секции.",
   "properties": {
     "base_url": {
       "default": "http://localhost",
+      "description": "Базовый URL тестируемого приложения. Абсолютный, со схемой http или https.",
+      "pattern": "^https?://\\S+$",
       "title": "Base Url",
       "type": "string"
     },
     "default_timeout": {
       "default": 10.0,
+      "description": "Таймаут по умолчанию для explicit wait операций с элементами (сек). Должен быть положительным.",
+      "exclusiveMinimum": 0,
       "title": "Default Timeout",
       "type": "number"
     },
     "log_dir": {
       "default": "logs",
+      "description": "Директория для файлов логов тестов (относительно корня проекта или абсолютный путь). Создается автоматически если отсутствует.",
+      "minLength": 1,
       "title": "Log Dir",
       "type": "string"
     },
     "highlight_elements": {
       "default": false,
+      "description": "Подсвечивать элемент красной рамкой на время взаимодействия. Удобно при отладке и записи скринкастов.",
       "title": "Highlight Elements",
       "type": "boolean"
     },
@@ -40,34 +114,23 @@
       "default": "chrome",
       "description": "Тип запускаемого браузера. Доступность зависит от ОС: Safari - только macOS; Edge - macOS/Windows; остальные кроссплатформенны. undetected-chrome использует undetected-chromedriver."
     },
-    "headless": {
-      "default": true,
-      "description": "Запускать браузер в headless-режиме (без UI). Safari игнорирует флаг - не поддерживает headless.",
-      "title": "Headless",
-      "type": "boolean"
+    "chrome": {
+      "$ref": "#/$defs/BrowserConfig"
     },
-    "page_load_timeout": {
-      "default": 30.0,
-      "description": "Таймаут ожидания полной загрузки страницы при навигации (сек). Должен быть не меньше 1 - иначе нереалистично для любой страницы.",
-      "minimum": 1.0,
-      "title": "Page Load Timeout",
-      "type": "number"
+    "firefox": {
+      "$ref": "#/$defs/BrowserConfig"
     },
-    "window_width": {
-      "default": 1920,
-      "description": "Ширина окна браузера в пикселях. Диапазон от минимального отображаемого размера (320) до 8K (7680).",
-      "maximum": 7680,
-      "minimum": 320,
-      "title": "Window Width",
-      "type": "integer"
+    "edge": {
+      "$ref": "#/$defs/BrowserConfig"
     },
-    "window_height": {
-      "default": 1080,
-      "description": "Высота окна браузера в пикселях. Диапазон от минимального отображаемого размера (240) до 8K (4320).",
-      "maximum": 4320,
-      "minimum": 240,
-      "title": "Window Height",
-      "type": "integer"
+    "safari": {
+      "$ref": "#/$defs/BrowserConfig"
+    },
+    "undetected_chrome": {
+      "$ref": "#/$defs/BrowserConfig"
+    },
+    "screencast": {
+      "$ref": "#/$defs/ScreencastConfig"
     }
   },
   "title": "SeleniumConfig",

@@ -84,35 +84,46 @@ class ElementJsActions:
 
     def click(self) -> None:
         self._log.info("JS click")
-        # language=js
-        self._driver.execute_script("arguments[0].click();", self._find())
+        element = self._find()
+        with self.maybe_highlight():
+            # language=js
+            self._driver.execute_script("arguments[0].click();", element)
 
     def scroll_into_view(self) -> None:
         self._log.info("JS scroll into view")
-        # language=js
-        script = "arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});"
-        self._driver.execute_script(script, self._find())
+        element = self._find()
+        with self.maybe_highlight():
+            # language=js
+            script = (
+                "arguments[0].scrollIntoView("
+                "{behavior: 'instant', block: 'center'});"
+            )
+            self._driver.execute_script(script, element)
 
     def set_input_value(self, value: str) -> None:
         self._log.info("JS set input value: %s", value)
-        # language=js
-        script = """
-        var el = arguments[0];
-        el.focus();
-        el.value = arguments[1];
-        el.dispatchEvent(new Event('input', {bubbles: true}));
-        el.dispatchEvent(new Event('change', {bubbles: true}));
-        """
-        self._driver.execute_script(script, self._find(), value)
+        element = self._find()
+        with self.maybe_highlight():
+            # language=js
+            script = """
+            var el = arguments[0];
+            el.focus();
+            el.value = arguments[1];
+            el.dispatchEvent(new Event('input', {bubbles: true}));
+            el.dispatchEvent(new Event('change', {bubbles: true}));
+            """
+            self._driver.execute_script(script, element, value)
 
     def blur(self) -> None:
         self._log.info("JS blur")
-        # language=js
-        script = """
-        arguments[0].dispatchEvent(new Event('blur', {bubbles: true}));
-        document.activeElement.blur();
-        """
-        self._driver.execute_script(script, self._find())
+        element = self._find()
+        with self.maybe_highlight():
+            # language=js
+            script = """
+            arguments[0].dispatchEvent(new Event('blur', {bubbles: true}));
+            document.activeElement.blur();
+            """
+            self._driver.execute_script(script, element)
 
     @contextmanager
     def highlight(self) -> Iterator[None]:
@@ -140,8 +151,13 @@ class ElementJsActions:
         finally:
             try:
                 self._driver.execute_script(remove_script, element)
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc:  # noqa: BLE001
+                # После действия элемент мог исчезнуть (навигация,
+                # перерендер). Не фейлим тест, но не молчим - пусть
+                # будет видно в логах.
+                self._log.warning(
+                    "Не удалось снять highlight (элемент исчез?): %s", exc,
+                )
 
     @contextmanager
     def maybe_highlight(self) -> Iterator[None]:

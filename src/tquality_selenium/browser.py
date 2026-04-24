@@ -134,16 +134,17 @@ class BrowserService:
     def _create_driver(self) -> WebDriver:
         cfg = self._config
         browser = cfg.browser
+        active = cfg.active_browser
         driver: WebDriver
 
         if browser is BrowserType.FIREFOX:
             ff_opts = FirefoxOptions()
-            if cfg.headless:
+            if active.headless:
                 ff_opts.add_argument("--headless")
             driver = webdriver.Firefox(options=ff_opts)
         elif browser is BrowserType.EDGE:
             edge_opts = EdgeOptions()
-            if cfg.headless:
+            if active.headless:
                 edge_opts.add_argument("--headless=new")
             edge_opts.add_argument("--no-sandbox")
             edge_opts.add_argument("--disable-dev-shm-usage")
@@ -161,7 +162,7 @@ class BrowserService:
             chrome_binary = _find_chrome_binary()
             if chrome_binary:
                 uc_opts.binary_location = chrome_binary
-            if cfg.headless:
+            if active.headless:
                 uc_opts.add_argument("--headless=new")
             uc_opts.add_argument("--no-sandbox")
             uc_opts.add_argument("--disable-dev-shm-usage")
@@ -169,7 +170,7 @@ class BrowserService:
             driver = uc.Chrome(options=uc_opts, version_main=version_main)
         elif browser is BrowserType.CHROME:
             ch_opts = ChromeOptions()
-            if cfg.headless:
+            if active.headless:
                 ch_opts.add_argument("--headless=new")
             ch_opts.add_argument("--no-sandbox")
             ch_opts.add_argument("--disable-dev-shm-usage")
@@ -178,8 +179,8 @@ class BrowserService:
             raise ValueError(f"Неподдерживаемый тип браузера: {browser!r}")
 
         driver.implicitly_wait(0)
-        driver.set_page_load_timeout(cfg.page_load_timeout)
-        driver.set_window_size(cfg.window_width, cfg.window_height)
+        driver.set_page_load_timeout(active.page_load_timeout)
+        driver.set_window_size(active.window_width, active.window_height)
         return driver
 
     @property

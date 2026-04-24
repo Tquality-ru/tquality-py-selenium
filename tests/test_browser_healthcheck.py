@@ -29,7 +29,15 @@ _HEALTHCHECK_URL = (
 
 def _smoke(browser: BrowserType, *, headless: bool = True) -> None:
     """Запустить браузер, открыть тестовую страницу, закрыть."""
-    cfg = SeleniumConfig(browser=browser, headless=headless)
+    from tquality_selenium.config import BrowserConfig
+
+    block = BrowserConfig(headless=headless)
+    # Применяем один и тот же блок к выбранному браузеру - остальные
+    # подтягивают дефолты.
+    cfg = SeleniumConfig(
+        browser=browser,
+        **{browser.value.replace("-", "_"): block},  # type: ignore[arg-type]
+    )
     service = BrowserService(cfg)
     try:
         service.open(_HEALTHCHECK_URL)
