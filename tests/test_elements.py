@@ -43,3 +43,13 @@ def test_element_js_actions_is_bound() -> None:
 
     btn = Button(By.ID, "submit")
     assert isinstance(btn.js_actions, ElementJsActions)
+
+
+def test_base_element_has_dismiss_if_visible_helper() -> None:
+    el = BaseElement(By.CSS_SELECTOR, ".cookies")
+    assert hasattr(el, "dismiss_if_visible") and callable(el.dismiss_if_visible)
+
+
+def test_input_has_submit_text() -> None:
+    inp = Input(By.ID, "price")
+    assert hasattr(inp, "submit_text") and callable(inp.submit_text)

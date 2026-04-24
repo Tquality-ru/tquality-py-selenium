@@ -77,6 +77,25 @@ class BaseElement:
         value = self._find().get_attribute(attr)
         return value if value is None else str(value)
 
+    def dismiss_if_visible(
+        self,
+        close_with: BaseElement | None = None,
+        timeout: float | None = None,
+    ) -> BaseElement:
+        """No-op если элемент не виден; иначе кликнуть и дождаться исчезновения.
+
+        Удобно для опциональных баннеров (cookie-попап, city-popup), которые
+        могут быть показаны или нет на момент захода на страницу.
+        `close_with` - если кнопка закрытия не совпадает с самим элементом
+        (например, баннер - это один узел, а закрывающий крестик - другой).
+        """
+        if not self.is_displayed:
+            return self
+        clicker = close_with if close_with is not None else self
+        clicker.click()
+        self.wait_until_invisible(timeout)
+        return self
+
     def wait_for_displayed(self, timeout: float | None = None) -> BaseElement:
         self._element_waiter.until_visible(
             self._by, self._value, self._name, timeout,

@@ -34,3 +34,7 @@ class Input(BaseElement):
         self.wait_until_visible()
         with self.js_actions.maybe_highlight():
             self._find().send_keys(text)
+
+    def submit_text(self, text: str) -> None:
+        """Ввести `text` и нажать Enter. Для форм с отправкой по Enter."""
+        self.type_text(text + Keys.RETURN)

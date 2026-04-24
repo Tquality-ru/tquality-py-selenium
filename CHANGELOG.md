@@ -3,6 +3,16 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
+## [0.1.4] - не выпущено
+
+### Добавлено
+
+- `BaseElement.dismiss_if_visible(close_with=None, timeout=None)` -
+  кликнуть и дождаться исчезновения, если элемент виден (иначе no-op).
+  Удобно для cookie-баннеров и опциональных попапов.
+- `Input.submit_text(text)` - ввести текст и нажать Enter (для форм
+  с отправкой по Enter; оборачивает `type_text(text + Keys.RETURN)`).
+
 ## [0.1.3] - 2026-04-24
 
 **Требует tquality-py-core >= 0.1.3** (ядро с `WITH_SCREENCAST`,
