@@ -32,6 +32,38 @@ def test_schema_browser_enum_lists_all_supported_values() -> None:
     }
 
 
+def test_schema_url_resolves_to_master_on_dev_install() -> None:
+    """Dev-версия (с '+g...' или '.dev') резолвится в @master."""
+    import tquality_selenium.schema as schema_mod
+    from tquality_selenium.schema import _resolve_ref
+
+    def _stub(_name: str) -> str:
+        return "0.1.3+gabc123"
+
+    original = schema_mod.importlib.metadata.version  # type: ignore[attr-defined]
+    schema_mod.importlib.metadata.version = _stub  # type: ignore[attr-defined]
+    try:
+        assert _resolve_ref() == "master"
+    finally:
+        schema_mod.importlib.metadata.version = original  # type: ignore[attr-defined]
+
+
+def test_schema_url_resolves_to_version_on_release_install() -> None:
+    """Чистая релизная версия резолвится в @vX.Y.Z."""
+    import tquality_selenium.schema as schema_mod
+    from tquality_selenium.schema import _resolve_ref
+
+    def _stub(_name: str) -> str:
+        return "0.1.3"
+
+    original = schema_mod.importlib.metadata.version  # type: ignore[attr-defined]
+    schema_mod.importlib.metadata.version = _stub  # type: ignore[attr-defined]
+    try:
+        assert _resolve_ref() == "v0.1.3"
+    finally:
+        schema_mod.importlib.metadata.version = original  # type: ignore[attr-defined]
+
+
 def test_committed_schema_matches_selenium_config() -> None:
     """Коммиченная схема должна совпадать со схемой, генерируемой из SeleniumConfig.
 
