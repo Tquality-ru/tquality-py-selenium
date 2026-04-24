@@ -63,12 +63,19 @@ class SeleniumConfig(BaseConfig):
     """Конфигурация для Selenium-тестов.
 
     Структурирована по логическим блокам: per-browser и feature-specific.
-    Это даст возможность заранее описать все браузеры в одном конфиге
+    Это даёт возможность заранее описать все браузеры в одном конфиге
     и переключаться между ними только через поле `browser`, без
     переписывания остальной секции.
     """
 
-    browser: BrowserType = BrowserType.CHROME
+    browser: BrowserType = Field(
+        default=BrowserType.CHROME,
+        description=(
+            "Тип запускаемого браузера. Доступность зависит от ОС: Safari - "
+            "только macOS; Edge - macOS/Windows; остальные кроссплатформенны. "
+            "undetected-chrome использует undetected-chromedriver."
+        ),
+    )
 
     chrome: BrowserConfig = Field(default_factory=BrowserConfig)
     firefox: BrowserConfig = Field(default_factory=BrowserConfig)

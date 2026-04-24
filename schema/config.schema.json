@@ -80,7 +80,7 @@
       "type": "object"
     }
   },
-  "description": "Конфигурация для Selenium-тестов.\n\nСтруктурирована по логическим блокам: per-browser и feature-specific.\nЭто даст возможность заранее описать все браузеры в одном конфиге\nи переключаться между ними только через поле `browser`, без\nпереписывания остальной секции.",
+  "description": "Конфигурация для Selenium-тестов.\n\nСтруктурирована по логическим блокам: per-browser и feature-specific.\nЭто даёт возможность заранее описать все браузеры в одном конфиге\nи переключаться между ними только через поле `browser`, без\nпереписывания остальной секции.",
   "properties": {
     "base_url": {
       "default": "http://localhost",
@@ -111,7 +111,8 @@
     },
     "browser": {
       "$ref": "#/$defs/BrowserType",
-      "default": "chrome"
+      "default": "chrome",
+      "description": "Тип запускаемого браузера. Доступность зависит от ОС: Safari - только macOS; Edge - macOS/Windows; остальные кроссплатформенны. undetected-chrome использует undetected-chromedriver."
     },
     "chrome": {
       "$ref": "#/$defs/BrowserConfig"

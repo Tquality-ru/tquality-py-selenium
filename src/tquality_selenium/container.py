@@ -57,7 +57,11 @@ def browser():
 """
 from __future__ import annotations
 
-from typing import Any, TypeVar
+import inspect
+import os
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Any, Iterator, TypeVar
 
 from dependency_injector import containers, providers
 
@@ -89,6 +93,17 @@ T = TypeVar("T")
 # подкласса. Используется `get_service()` для резолва сервисов элементами/формами
 # без явной инъекции.
 _active_services: type[SeleniumServices] | None = None
+
+
+@contextmanager
+def _cwd(path: Path) -> Iterator[None]:
+    """Временно перейти в `path`; по выходу из контекста - обратно."""
+    previous = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(previous)
 
 
 class SeleniumServices(containers.DeclarativeContainer):
@@ -136,12 +151,30 @@ class SeleniumServices(containers.DeclarativeContainer):
     )
 
     @classmethod
-    def setup(cls) -> None:
+    def setup(cls, config_dir: Path | str | None = None) -> None:
         """Composition root: зарегистрировать контейнер как активный.
 
-        Использует `cls` для `set_logger_resolver`, чтобы подклассы с
+        ``config_dir`` - стартовая директория поиска ``config.json5``.
+        Если не задана, берется директория вызывающего файла (обычно
+        `conftest.py` проекта). Это устраняет зависимость от CWD pytest:
+        тест можно запускать из корня репо, а конфиги проекта окажутся
+        подхвачены правильно.
+
+        Использует `cls.logger` / `cls.browser`, чтобы подклассы с
         переопределенными провайдерами работали корректно.
         """
+        if config_dir is None:
+            caller_file = inspect.stack()[1].filename
+            config_dir = Path(caller_file).resolve().parent
+        else:
+            config_dir = Path(config_dir).resolve()
+
+        # Кешируем singleton с правильно разрешенным config.json.
+        # pydantic-settings ходит от os.getcwd(), поэтому временно
+        # подменяем его - именно для момента первой инициализации.
+        with _cwd(config_dir):
+            cls.config()
+
         global _active_services
         _active_services = cls
         set_logger_resolver(lambda: cls.logger())
