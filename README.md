@@ -2,73 +2,90 @@
 
 Selenium-интеграция поверх [tquality-py-core](https://github.com/Tquality-ru/tquality-py-core).
 
-Реализует:
+## Что входит
 
-- **SeleniumConfig** - расширение `BaseConfig` с полями `browser`, `headless`,
-  `window_width/height`, `page_load_timeout`.
-- **BrowserType** - enum (`chrome`, `firefox`, `undetected-chrome`).
-- **BrowserService** - управляемый DI сервис с WebDriver внутри.
-- **BaseElement** - конкретная реализация `tquality_core.BaseElement` через
-  Selenium. От нее наследуются Button, Label, Input, CheckBox.
-- **SeleniumScreenshotProvider** - подключает CRITICAL шаги ядра к WebDriver.
-- **Container** - DI-контейнер (`dependency-injector`), готовый к расширению.
+- **`SeleniumConfig`** - расширение `BaseConfig` с полем-выбором `browser`
+  и отдельными под-блоками `chrome`, `firefox`, `edge`, `safari`,
+  `undetected_chrome` (все блоки живут одновременно) + под-блок
+  `screencast` для видеозаписи шагов.
+- **`BrowserType`** - enum: `chrome`, `firefox`, `edge`, `safari`,
+  `undetected-chrome`. Доступность по ОС проверяется `OSUtils` при
+  старте браузера (fail-fast).
+- **`BrowserService`** - обёртка над WebDriver, параметры берутся из
+  `config.active_browser`.
+- **`BaseElement`** и производные `Button`, `Input`, `CheckBox`, `Label`
+  с полным API: `click`, `text`, `get_attribute`, `wait_until_*`,
+  `js_actions` (лениво резолвится к элементу).
+- **`BaseForm`** - базовый page-object с `title`, `current_url`,
+  `element_factory` (через composition root).
+- **Сервисы**: `Waiter`, `ElementWaiter`, `ElementFactory`, `JsActions`
+  + `ElementJsActions`, `CollectionFactory` (фабрика коллекций
+  Pydantic-моделей из DOM) + `DomField.css/xpath`.
+- **`SeleniumScreenshotProvider`** - скриншоты для `CRITICAL` шагов.
+- **`SeleniumScreencastProvider`** - webm-видеозапись (VP9 через
+  imageio-ffmpeg) для шагов `WITH_SCREENCAST`.
+- **`SeleniumServices`** - composition root (DI-контейнер на базе
+  `dependency-injector`). Наследуйтесь, чтобы добавить или заменить
+  любой сервис.
 
 ## Требования
 
 - Python 3.12+
+- Установленные браузеры (для тестов с реальным драйвером).
 
 ## Установка
 
-Пока репозиторий публикуется только как git-зависимость:
+Пакет пока не на публичном PyPI. Ставится из публичного GitHub-зеркала
+по git-тегу:
 
 ```toml
 [project]
 dependencies = [
-    "tquality-py-selenium @ git+https://git.tquality.ru/frameworks/python/tquality-py-selenium.git@master",
+    "tquality-py-selenium @ git+https://github.com/Tquality-ru/tquality-py-selenium.git@v0.1.3",
 ]
-```
 
-После публикации на PyPI установка будет через `uv pip install tquality-py-selenium`.
+# hatch требует явного разрешения direct-references для git-URL.
+[tool.hatch.metadata]
+allow-direct-references = true
+```
 
 ## Быстрый старт
 
 ```python
 # conftest.py
 import pytest
-from tquality_selenium import Container, wire_core_integrations
+from tquality_selenium import SeleniumServices
 
-wire_core_integrations()
+# Composition root. config_dir по умолчанию - директория этого файла,
+# так что config.json5 рядом с conftest.py подхватится независимо от cwd.
+SeleniumServices.setup()
 
 
 @pytest.fixture(autouse=True)
 def browser():
-    Container.browser()
+    SeleniumServices.browser()
     yield
-    Container.browser().quit()
-    Container.browser.reset()
-    Container.logger.reset()
+    SeleniumServices.browser().quit()
+    SeleniumServices.browser.reset()
+    SeleniumServices.logger.reset()
 ```
 
 ```python
 # pages/login_page.py
 from selenium.webdriver.common.by import By
-from tquality_selenium import BaseForm, Button, Container, Input
+from tquality_selenium import BaseForm
 
 
 class LoginPage(BaseForm):
     def __init__(self) -> None:
-        resolver = lambda: Container.browser()
-        self._username = Input(
+        self._username = self.element_factory.input(
             By.ID, "username", "Логин",
-            browser_resolver=resolver,
         )
-        self._password = Input(
+        self._password = self.element_factory.input(
             By.ID, "password", "Пароль",
-            browser_resolver=resolver,
         )
-        self._submit = Button(
+        self._submit = self.element_factory.button(
             By.ID, "login-btn", "Войти",
-            browser_resolver=resolver,
         )
         super().__init__(unique_element=self._username, name="Страница входа")
 
@@ -78,16 +95,90 @@ class LoginPage(BaseForm):
         self._submit.click()
 ```
 
+```jsonc
+// config.json5 - рядом с conftest.py
+{
+    "$schema": "https://cdn.jsdelivr.net/gh/Tquality-ru/tquality-py-selenium@v0.1.3/schema/config.schema.json",
+
+    "base_url": "https://example.com",
+    "browser": "chrome",
+    "highlight_elements": true,  // красная рамка на время взаимодействия
+
+    // Все браузеры заранее сконфигурированы, переключение - смена browser выше.
+    "chrome": { "headless": true },
+    "firefox": { "headless": true },
+    "undetected_chrome": { "headless": false },
+
+    "screencast": {
+        "fps": 10,
+        "frame_interval": 0.1,  // чаще ловим короткие состояния UI
+    },
+}
+```
+
+## Расширение через подкласс `SeleniumServices`
+
+```python
+from dependency_injector import providers
+from tquality_selenium import SeleniumServices
+
+
+class ProjectServices(SeleniumServices):
+    # Новый сервис - добавить:
+    my_client = providers.Singleton(MyHttpClient)
+
+    # Существующий - заменить:
+    # browser = providers.ContextLocalSingleton(
+    #     MyBrowserService, config=SeleniumServices.config,
+    # )
+
+
+# conftest.py
+ProjectServices.setup()
+```
+
+Доступ к сервису по типу, без привязки к имени провайдера:
+
+```python
+from tquality_selenium import SeleniumServices
+from tquality_selenium.browser import BrowserService
+
+browser = SeleniumServices.get_service(BrowserService)
+```
+
+## Screencast шагов
+
+```python
+from tquality_selenium import LogLevel, step
+
+
+def login():
+    with step("Вход в систему", level=LogLevel.WITH_SCREENCAST):
+        ...
+    # К allure-отчёту прикреплён webm с записью всего шага.
+```
+
+Захват идёт в фоновом потоке с `contextvars.copy_context()`, чтобы не
+открывалась вторая сессия WebDriver. Стратегия захвата кадра:
+BiDi → CDP → классический `get_screenshot_as_png` (с warning на фолбеке).
+
 ## Разработка
 
 См. [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## CI/CD
 
-GitLab CI запускает две проверки на каждом MR и на master:
+GitLab CI на каждом MR и на master:
 
-- **mypy** - strict-режим проверки типов
-- **tests** - запуск pytest с JUnit-отчетом
+- **`mypy`** - strict-режим.
+- **`tests:linux`** - pytest без реальных браузеров.
+- **`tests:macos`** - healthcheck 5 браузеров на macos-runner.
 
-При публикации git-тега вида `vX.Y.Z` джоб `mirror-to-github` зеркалирует
-репозиторий в https://github.com/Tquality-ru/tquality-py-selenium.
+На git-теге `vX.Y.Z`:
+
+- **`publish`** - сборка (версия из тега через `hatch-vcs`) и
+  публикация в GitLab Package Registry.
+- **`mirror-to-github`** - master и сам тег уходят в
+  https://github.com/Tquality-ru/tquality-py-selenium.
+
+История версий - в [CHANGELOG.md](CHANGELOG.md).

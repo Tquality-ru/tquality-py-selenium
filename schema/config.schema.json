@@ -84,21 +84,28 @@
   "properties": {
     "base_url": {
       "default": "http://localhost",
+      "description": "Базовый URL тестируемого приложения. Абсолютный, со схемой http или https.",
+      "pattern": "^https?://\\S+$",
       "title": "Base Url",
       "type": "string"
     },
     "default_timeout": {
       "default": 10.0,
+      "description": "Таймаут по умолчанию для explicit wait операций с элементами (сек). Должен быть положительным.",
+      "exclusiveMinimum": 0,
       "title": "Default Timeout",
       "type": "number"
     },
     "log_dir": {
       "default": "logs",
+      "description": "Директория для файлов логов тестов (относительно корня проекта или абсолютный путь). Создается автоматически если отсутствует.",
+      "minLength": 1,
       "title": "Log Dir",
       "type": "string"
     },
     "highlight_elements": {
       "default": false,
+      "description": "Подсвечивать элемент красной рамкой на время взаимодействия. Удобно при отладке и записи скринкастов.",
       "title": "Highlight Elements",
       "type": "boolean"
     },
