@@ -103,7 +103,7 @@ uv run tquality-selenium-config schema
 Коммит без обновленной схемы провалит тест
 `test_committed_schema_matches_selenium_config` в CI.
 
-Для инициализации `config.json` в чужом проекте со значениями по умолчанию:
+Для инициализации `config.json5` в чужом проекте со значениями по умолчанию:
 
 ```bash
 uv run tquality-selenium-config init

@@ -14,7 +14,7 @@ def test_init_creates_config_with_core_and_selenium_defaults(tmp_path: Path) -> 
     exit_code = main(["init", "--path", str(tmp_path)])
 
     assert exit_code == 0
-    config_file = tmp_path / "config.json"
+    config_file = tmp_path / "config.json5"
     assert config_file.exists()
 
     data = json.loads(config_file.read_text(encoding="utf-8"))
@@ -38,7 +38,7 @@ def test_init_creates_config_with_core_and_selenium_defaults(tmp_path: Path) -> 
 def test_init_refuses_to_overwrite_without_force(
     tmp_path: Path, capsys: pytest.CaptureFixture[str],
 ) -> None:
-    config_file = tmp_path / "config.json"
+    config_file = tmp_path / "config.json5"
     config_file.write_text('{"base_url": "https://custom"}', encoding="utf-8")
 
     exit_code = main(["init", "--path", str(tmp_path)])
@@ -49,7 +49,7 @@ def test_init_refuses_to_overwrite_without_force(
 
 
 def test_init_overwrites_with_force(tmp_path: Path) -> None:
-    config_file = tmp_path / "config.json"
+    config_file = tmp_path / "config.json5"
     config_file.write_text('{"base_url": "https://custom"}', encoding="utf-8")
 
     exit_code = main(["init", "--path", str(tmp_path), "--force"])
