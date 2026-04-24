@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextvars
 import io
 import threading
+import time
 from typing import Callable
 
 from PIL import Image
@@ -32,7 +33,9 @@ class SeleniumScreencastProvider:
         self._is_available_cb = availability_check
         self._frame_interval = frame_interval
         self._max_duration = max_duration
-        self._frames: list[bytes] = []
+        # Пара (PNG-байты, timestamp) - timestamp используется для
+        # вычисления длительности показа каждого кадра в итоговом GIF.
+        self._frames: list[tuple[bytes, float]] = []
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -78,22 +81,33 @@ class SeleniumScreencastProvider:
 
         Пока сессия драйвера неактивна - просто ждем следующего тика.
         Не создаем новый драйвер и не блокируем главный поток.
+        Для каждого кадра сохраняет реальный timestamp - итоговый GIF
+        будет проигрываться с таймингами, соответствующими реальному
+        времени выполнения шага (не влияет скорость `get_screenshot`).
         """
-        elapsed = 0.0
-        while not self._stop_event.is_set() and elapsed < self._max_duration:
+        started = time.monotonic()
+        while (
+            not self._stop_event.is_set()
+            and time.monotonic() - started < self._max_duration
+        ):
             if self._is_available_cb():
                 try:
                     png: bytes = self._driver_resolver().get_screenshot_as_png()
-                    self._frames.append(png)
+                    self._frames.append((png, time.monotonic()))
                 except Exception:  # noqa: BLE001 - сессия могла закрыться
                     pass
             self._stop_event.wait(self._frame_interval)
-            elapsed += self._frame_interval
 
-    def _to_gif(self, frames: list[bytes]) -> bytes:
-        """Собрать GIF из PNG-кадров через Pillow. Скейлим до ширины 800px."""
+    def _to_gif(self, frames: list[tuple[bytes, float]]) -> bytes:
+        """Собрать GIF из PNG-кадров через Pillow.
+
+        Длительность показа каждого кадра вычисляется по разнице
+        timestamp'ов - так плеер воспроизводит с реальной скоростью теста.
+        Последний кадр держится `frame_interval` по умолчанию.
+        Кадры шире 800px даунскейлятся (сохраняя пропорции).
+        """
         images: list[Image.Image] = []
-        for png in frames:
+        for png, _ts in frames:
             img: Image.Image = Image.open(io.BytesIO(png))
             if img.width > 800:
                 ratio = 800 / img.width
@@ -102,13 +116,20 @@ class SeleniumScreencastProvider:
                     Image.Resampling.LANCZOS,
                 )
             images.append(img.convert("P", palette=Image.Palette.ADAPTIVE))
+
+        durations_ms: list[int] = []
+        for i in range(len(frames) - 1):
+            delta = frames[i + 1][1] - frames[i][1]
+            durations_ms.append(max(1, int(delta * 1000)))
+        durations_ms.append(int(self._frame_interval * 1000))
+
         buf = io.BytesIO()
         images[0].save(
             buf,
             format="GIF",
             save_all=True,
             append_images=images[1:],
-            duration=int(self._frame_interval * 1000),
+            duration=durations_ms,
             loop=0,
             optimize=True,
         )
