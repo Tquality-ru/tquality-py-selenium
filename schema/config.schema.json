@@ -37,25 +37,35 @@
     },
     "browser": {
       "$ref": "#/$defs/BrowserType",
-      "default": "chrome"
+      "default": "chrome",
+      "description": "Тип запускаемого браузера. Доступность зависит от ОС: Safari - только macOS; Edge - macOS/Windows; остальные кроссплатформенны. undetected-chrome использует undetected-chromedriver."
     },
     "headless": {
       "default": true,
+      "description": "Запускать браузер в headless-режиме (без UI). Safari игнорирует флаг - не поддерживает headless.",
       "title": "Headless",
       "type": "boolean"
     },
     "page_load_timeout": {
       "default": 30.0,
+      "description": "Таймаут ожидания полной загрузки страницы при навигации (сек). Должен быть не меньше 1 - иначе нереалистично для любой страницы.",
+      "minimum": 1.0,
       "title": "Page Load Timeout",
       "type": "number"
     },
     "window_width": {
       "default": 1920,
+      "description": "Ширина окна браузера в пикселях. Диапазон от минимального отображаемого размера (320) до 8K (7680).",
+      "maximum": 7680,
+      "minimum": 320,
       "title": "Window Width",
       "type": "integer"
     },
     "window_height": {
       "default": 1080,
+      "description": "Высота окна браузера в пикселях. Диапазон от минимального отображаемого размера (240) до 8K (4320).",
+      "maximum": 4320,
+      "minimum": 240,
       "title": "Window Height",
       "type": "integer"
     }
