@@ -118,33 +118,88 @@ class LoginPage(BaseForm):
 
 ## Расширение через подкласс `SeleniumServices`
 
+Наследуйтесь и добавляйте свои сервисы. Scope определяется типом
+провайдера `dependency-injector` (+ где сбрасывается в фикстурах):
+
+| Scope             | Провайдер                      | Lifetime                                       |
+| ----------------- | ------------------------------ | ---------------------------------------------- |
+| **global**        | `providers.Singleton`          | Один экземпляр на весь процесс pytest.         |
+| **session-scoped**| `providers.ContextLocalSingleton` + reset в `scope="session"` фикстуре | Один экземпляр на сессию, сбрасывается на выходе. |
+| **test-scoped**   | `providers.ContextLocalSingleton` + reset в `autouse=True` фикстуре    | Новый экземпляр на каждый тест. |
+| **transient**     | `providers.Factory`            | Новый экземпляр на каждый вызов `services.my_service()`. |
+
 ```python
+# my_project/services.py
 from dependency_injector import providers
 from tquality_selenium import SeleniumServices
 
+from my_project.clients import ApiClient, CurrentUser, TempDirFactory
+
 
 class ProjectServices(SeleniumServices):
-    # Новый сервис - добавить:
-    my_client = providers.Singleton(MyHttpClient)
+    # Global: один API-клиент на процесс.
+    api_client = providers.Singleton(ApiClient)
 
-    # Существующий - заменить:
+    # Session-scoped: данные, общие для всех тестов одного прогона.
+    session_data = providers.ContextLocalSingleton(SessionData)
+
+    # Test-scoped: новое состояние на каждый тест.
+    current_user = providers.ContextLocalSingleton(CurrentUser)
+
+    # Transient: каждое обращение - свежий экземпляр.
+    temp_dir = providers.Factory(TempDirFactory)
+
+    # Существующий сервис - заменить (ссылаемся на родительский config):
     # browser = providers.ContextLocalSingleton(
     #     MyBrowserService, config=SeleniumServices.config,
     # )
-
-
-# conftest.py
-ProjectServices.setup()
 ```
 
-Доступ к сервису по типу, без привязки к имени провайдера:
+```python
+# conftest.py
+import pytest
+
+from my_project.services import ProjectServices
+
+ProjectServices.setup()
+
+
+@pytest.fixture(autouse=True)
+def _reset_test_scoped_services():
+    """Test-scoped ContextLocalSingleton'ы сбрасываются после каждого теста."""
+    yield
+    ProjectServices.current_user.reset()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _reset_session_scoped_services():
+    """Session-scoped сбрасываются в конце сессии pytest."""
+    yield
+    ProjectServices.session_data.reset()
+
+
+@pytest.fixture(autouse=True)
+def browser():
+    ProjectServices.browser()
+    yield
+    ProjectServices.browser().quit()
+    ProjectServices.browser.reset()
+    ProjectServices.logger.reset()
+```
+
+Достать сервис по типу, без привязки к имени провайдера - удобно
+внутри элементов/форм, которые не видят конкретный подкласс:
 
 ```python
 from tquality_selenium import SeleniumServices
-from tquality_selenium.browser import BrowserService
+from my_project.clients import ApiClient
 
-browser = SeleniumServices.get_service(BrowserService)
+client = SeleniumServices.get_service(ApiClient)
 ```
+
+`get_service` идёт в активный composition root (тот, что последним
+вызвал `setup()`), поэтому подменённые в подклассе провайдеры
+обрабатываются прозрачно.
 
 ## Screencast шагов
 
