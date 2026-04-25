@@ -24,13 +24,33 @@ cat > "$PRE_COMMIT" << 'HOOK_EOF'
 #!/usr/bin/env bash
 # Pre-commit хук: запускает mypy в strict-режиме.
 # Блокирует коммит при ошибках типов.
+#
+# Проверяем РОВНО то, что коммитится (index), а не рабочее дерево.
+# Иначе классический баг: файл add'нут со старой формой, потом
+# отредактирован, mypy на рабочем дереве зелёный, а в коммит уходит
+# старый index. Чтобы этого избежать - стэшим unstaged-изменения на
+# время проверки и восстанавливаем по выходу.
 set -euo pipefail
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HOOK_DIR/../.." && pwd)"
 cd "$REPO_ROOT"
 
-echo "==> Проверка типов через mypy..."
+stashed=0
+if ! git diff --quiet; then
+    git stash push --keep-index --include-untracked --quiet \
+        --message "pre-commit-hook-stash" || true
+    stashed=1
+fi
+
+restore_stash() {
+    if [ "$stashed" = "1" ]; then
+        git stash pop --quiet || true
+    fi
+}
+trap restore_stash EXIT
+
+echo "==> Проверка типов через mypy (на содержимом index'а)..."
 if ! uv run mypy; then
     echo ""
     echo "✘ mypy нашел ошибки типов. Коммит отменен."

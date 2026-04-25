@@ -131,6 +131,12 @@
     },
     "screencast": {
       "$ref": "#/$defs/ScreencastConfig"
+    },
+    "attach_page_source_on_failure": {
+      "default": true,
+      "description": "Прикреплять текущий driver.page_source к allure-отчёту при падении теста (HTML-вложение). Включено по умолчанию: diff между ожидаемым и фактическим DOM почти всегда нужен для расследования. Если сессия мертва, прикрепляется диагностический комментарий вместо HTML.",
+      "title": "Attach Page Source On Failure",
+      "type": "boolean"
     }
   },
   "title": "SeleniumConfig",

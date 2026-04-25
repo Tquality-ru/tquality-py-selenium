@@ -85,6 +85,17 @@ class SeleniumConfig(BaseConfig):
 
     screencast: ScreencastConfig = Field(default_factory=ScreencastConfig)
 
+    attach_page_source_on_failure: bool = Field(
+        default=True,
+        description=(
+            "Прикреплять текущий driver.page_source к allure-отчёту "
+            "при падении теста (HTML-вложение). Включено по умолчанию: "
+            "diff между ожидаемым и фактическим DOM почти всегда нужен "
+            "для расследования. Если сессия мертва, прикрепляется "
+            "диагностический комментарий вместо HTML."
+        ),
+    )
+
     @property
     def active_browser(self) -> BrowserConfig:
         """Конфиг того браузера, что выбран в `self.browser`."""

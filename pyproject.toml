@@ -27,6 +27,9 @@ dependencies = [
 [project.scripts]
 tquality-selenium-config = "tquality_selenium.cli:main"
 
+[project.entry-points.pytest11]
+tquality_selenium_page_source = "tquality_selenium.page_source_plugin"
+
 [dependency-groups]
 dev = [
     "mypy>=1.11",
