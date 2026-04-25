@@ -41,7 +41,7 @@ Selenium-интеграция поверх [tquality-py-core](https://github.com
 ```toml
 [project]
 dependencies = [
-    "tquality-py-selenium @ git+https://github.com/Tquality-ru/tquality-py-selenium.git@v0.1.3",
+    "tquality-py-selenium @ git+https://github.com/Tquality-ru/tquality-py-selenium.git@v0.1.4",
 ]
 
 # hatch требует явного разрешения direct-references для git-URL.
@@ -98,7 +98,7 @@ class LoginPage(BaseForm):
 ```jsonc
 // config.json5 - рядом с conftest.py
 {
-    "$schema": "https://cdn.jsdelivr.net/gh/Tquality-ru/tquality-py-selenium@v0.1.3/schema/config.schema.json",
+    "$schema": "https://cdn.jsdelivr.net/gh/Tquality-ru/tquality-py-selenium@v0.1.4/schema/config.schema.json",
 
     "base_url": "https://example.com",
     "browser": "chrome",
