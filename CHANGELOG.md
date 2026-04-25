@@ -12,6 +12,17 @@
   Удобно для cookie-баннеров и опциональных попапов.
 - `Input.submit_text(text)` - ввести текст и нажать Enter (для форм
   с отправкой по Enter; оборачивает `type_text(text + Keys.RETURN)`).
+- Pytest-плагин `tquality_selenium.page_source_plugin`, автоматически
+  регистрируется через `entry-points.pytest11`. На падении теста (любая
+  фаза) прикрепляет `driver.page_source` к allure как HTML-вложение
+  `Page source`. Единственный run-time guard - запущен ли браузер; для
+  api/db-only тестов плагин - no-op.
+- Если `driver.page_source` сам бросает (мёртвая сессия), вместо HTML
+  прикрепляется короткий TEXT-диагностик, чтобы не маскировать исходное
+  падение.
+- Поле `SeleniumConfig.attach_page_source_on_failure: bool = True` для
+  опт-аута. Управляется через `config.json5` или env
+  `TEST_ATTACH_PAGE_SOURCE_ON_FAILURE=false`.
 
 ## [0.1.3] - 2026-04-24
 

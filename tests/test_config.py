@@ -68,3 +68,20 @@ def test_browser_from_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("TEST_BROWSER", "firefox")
     cfg = SeleniumConfig()
     assert cfg.browser is BrowserType.FIREFOX
+
+
+def test_attach_page_source_on_failure_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    cfg = SeleniumConfig()
+    assert cfg.attach_page_source_on_failure is True
+
+
+def test_attach_page_source_on_failure_from_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TEST_ATTACH_PAGE_SOURCE_ON_FAILURE", "false")
+    cfg = SeleniumConfig()
+    assert cfg.attach_page_source_on_failure is False

@@ -11,6 +11,7 @@ _SELENIUM_FIELDS = {
     "browser",
     "chrome", "firefox", "edge", "safari", "undetected_chrome",
     "screencast",
+    "attach_page_source_on_failure",
 }
 
 
