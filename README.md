@@ -1,42 +1,49 @@
 # tquality-py-selenium
 
-Selenium-интеграция поверх [tquality-py-core](https://github.com/Tquality-ru/tquality-py-core).
+Интеграция Selenium на основе [tquality-py-core](https://github.com/Tquality-ru/tquality-py-core).
 
-## Что входит
+## Компоненты
 
-- **`SeleniumConfig`** - расширение `BaseConfig` с полем-выбором `browser`
-  и отдельными под-блоками `chrome`, `firefox`, `edge`, `safari`,
-  `undetected_chrome` (все блоки живут одновременно) + под-блок
+- **`SeleniumConfig`** - расширение `BaseConfig` с полем выбора `browser`
+  и отдельными вложенными блоками `chrome`, `firefox`, `edge`, `safari`,
+  `undetected_chrome` (все блоки сосуществуют) + вложенный блок
   `screencast` для видеозаписи шагов.
-- **`BrowserType`** - enum: `chrome`, `firefox`, `edge`, `safari`,
-  `undetected-chrome`. Доступность по ОС проверяется `OSUtils` при
-  старте браузера (fail-fast).
+- **`BrowserType`** - перечисление: `chrome`, `firefox`, `edge`, `safari`,
+  `undetected-chrome`. Доступность для текущей ОС проверяется `OSUtils` при
+  запуске браузера (с немедленной остановкой при ошибке).
+- **`BaseElement`** и производные `Button`, `Input`, `CheckBox`, `Label`
+  с полным набором методов: `click`, `text`, `get_attribute`, `wait_until_*`,
+  `js_actions` (лениво связывается с элементом).
+- **`BaseForm`** - базовый класс страницы с `title`, `current_url`,
+  `element_factory` (через композиционный корень).
+- **`SeleniumServices`** - композиционный корень (контейнер внедрения зависимостей
+  на основе `dependency-injector`). Для добавления или замены любой службы
+  используется наследование.
+
+## Службы
+
 - **`BrowserService`** - обёртка над WebDriver, параметры берутся из
   `config.active_browser`.
-- **`BaseElement`** и производные `Button`, `Input`, `CheckBox`, `Label`
-  с полным API: `click`, `text`, `get_attribute`, `wait_until_*`,
-  `js_actions` (лениво резолвится к элементу).
-- **`BaseForm`** - базовый page-object с `title`, `current_url`,
-  `element_factory` (через composition root).
-- **Сервисы**: `Waiter`, `ElementWaiter`, `ElementFactory`, `JsActions`
-  + `ElementJsActions`, `CollectionFactory` (фабрика коллекций
-  Pydantic-моделей из DOM) + `DomField.css/xpath`.
-- **`SeleniumScreenshotProvider`** - скриншоты для `CRITICAL` шагов.
-- **`SeleniumScreencastProvider`** - webm-видеозапись (VP9 через
+- **`Waiter`**, **`ElementWaiter`** - ожидания на уровне страницы и
+  отдельных элементов.
+- **`ElementFactory`** - фабрика элементов.
+- **`JsActions`** + **`ElementJsActions`** - действия через JavaScript
+  над страницей и элементами.
+- **`CollectionFactory`** - фабрика коллекций моделей Pydantic из DOM
+  (+ `DomField.css/xpath`).
+- **`SeleniumScreenshotProvider`** - снимки экрана для шагов уровня `CRITICAL`.
+- **`SeleniumScreencastProvider`** - видеозапись в формате webm (VP9 через
   imageio-ffmpeg) для шагов `WITH_SCREENCAST`.
-- **`SeleniumServices`** - composition root (DI-контейнер на базе
-  `dependency-injector`). Наследуйтесь, чтобы добавить или заменить
-  любой сервис.
 
 ## Требования
 
 - Python 3.12+
-- Установленные браузеры (для тестов с реальным драйвером).
+- Установленные браузеры (для тестов с настоящим драйвером).
 
 ## Установка
 
-Пакет пока не на публичном PyPI. Ставится из публичного GitHub-зеркала
-по git-тегу:
+Пакет пока не на публичном PyPI. Ставится из публичного зеркала на GitHub
+по тегу git:
 
 ```toml
 [project]
@@ -44,7 +51,7 @@ dependencies = [
     "tquality-py-selenium @ git+https://github.com/Tquality-ru/tquality-py-selenium.git@v0.1.4",
 ]
 
-# hatch требует явного разрешения direct-references для git-URL.
+# hatch требует явного разрешения direct-references для адресов git.
 [tool.hatch.metadata]
 allow-direct-references = true
 ```
@@ -56,8 +63,9 @@ allow-direct-references = true
 import pytest
 from tquality_selenium import SeleniumServices
 
-# Composition root. config_dir по умолчанию - директория этого файла,
-# так что config.json5 рядом с conftest.py подхватится независимо от cwd.
+# Композиционный корень. config_dir по умолчанию - каталог этого файла,
+# так что config.json5 рядом с conftest.py подхватится независимо
+# от текущего рабочего каталога.
 SeleniumServices.setup()
 
 
@@ -79,7 +87,7 @@ from tquality_selenium import BaseForm
 class LoginPage(BaseForm):
     def __init__(self) -> None:
         self._username = self.element_factory.input(
-            By.ID, "username", "Логин",
+            By.ID, "username", "Имя пользователя",
         )
         self._password = self.element_factory.input(
             By.ID, "password", "Пароль",
@@ -104,29 +112,30 @@ class LoginPage(BaseForm):
     "browser": "chrome",
     "highlight_elements": true,  // красная рамка на время взаимодействия
 
-    // Все браузеры заранее сконфигурированы, переключение - смена browser выше.
+    // Все браузеры заранее настроены, переключение - смена browser выше.
     "chrome": { "headless": true },
     "firefox": { "headless": true },
     "undetected_chrome": { "headless": false },
 
     "screencast": {
         "fps": 10,
-        "frame_interval": 0.1,  // чаще ловим короткие состояния UI
+        "frame_interval": 0.1,  // чаще фиксируются короткие состояния интерфейса
     },
 }
 ```
 
-## Расширение через подкласс `SeleniumServices`
+## Расширение через наследование от `SeleniumServices`
 
-Наследуйтесь и добавляйте свои сервисы. Scope определяется типом
-провайдера `dependency-injector` (+ где сбрасывается в фикстурах):
+Чтобы добавить свои службы, следует унаследоваться от `SeleniumServices`.
+Область действия определяется типом поставщика `dependency-injector`
+(+ где сбрасывается в фикстурах):
 
-| Scope             | Провайдер                      | Lifetime                                       |
-| ----------------- | ------------------------------ | ---------------------------------------------- |
-| **global**        | `providers.Singleton`          | Один экземпляр на весь процесс pytest.         |
-| **session-scoped**| `providers.ContextLocalSingleton` + reset в `scope="session"` фикстуре | Один экземпляр на сессию, сбрасывается на выходе. |
-| **test-scoped**   | `providers.ContextLocalSingleton` + reset в `autouse=True` фикстуре    | Новый экземпляр на каждый тест. |
-| **transient**     | `providers.Factory`            | Новый экземпляр на каждый вызов `services.my_service()`. |
+| Область действия     | Поставщик                      | Время жизни                                    |
+| -------------------- | ------------------------------ | ---------------------------------------------- |
+| **глобальная**       | `providers.Singleton`          | Один экземпляр на весь процесс pytest.         |
+| **уровня сессии**    | `providers.ContextLocalSingleton` + сброс в фикстуре `scope="session"` | Один экземпляр на сессию, сбрасывается на выходе. |
+| **уровня теста**     | `providers.ContextLocalSingleton` + сброс в фикстуре `autouse=True`    | Новый экземпляр на каждый тест. |
+| **одноразовая**      | `providers.Factory`            | Новый экземпляр на каждый вызов `services.my_service()`. |
 
 ```python
 # my_project/services.py
@@ -137,19 +146,19 @@ from my_project.clients import ApiClient, CurrentUser, TempDirFactory
 
 
 class ProjectServices(SeleniumServices):
-    # Global: один API-клиент на процесс.
+    # Глобальная: один клиент API на процесс.
     api_client = providers.Singleton(ApiClient)
 
-    # Session-scoped: данные, общие для всех тестов одного прогона.
+    # Уровня сессии: данные, общие для всех тестов одного прогона.
     session_data = providers.ContextLocalSingleton(SessionData)
 
-    # Test-scoped: новое состояние на каждый тест.
+    # Уровня теста: новое состояние на каждый тест.
     current_user = providers.ContextLocalSingleton(CurrentUser)
 
-    # Transient: каждое обращение - свежий экземпляр.
+    # Одноразовая: каждое обращение - свежий экземпляр.
     temp_dir = providers.Factory(TempDirFactory)
 
-    # Существующий сервис - заменить (ссылаемся на родительский config):
+    # Замена существующей службы (ссылка на родительский config):
     # browser = providers.ContextLocalSingleton(
     #     MyBrowserService, config=SeleniumServices.config,
     # )
@@ -166,14 +175,14 @@ ProjectServices.setup()
 
 @pytest.fixture(autouse=True)
 def _reset_test_scoped_services():
-    """Test-scoped ContextLocalSingleton'ы сбрасываются после каждого теста."""
+    """Экземпляры ContextLocalSingleton уровня теста сбрасываются после каждого теста."""
     yield
     ProjectServices.current_user.reset()
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _reset_session_scoped_services():
-    """Session-scoped сбрасываются в конце сессии pytest."""
+    """Экземпляры ContextLocalSingleton уровня сессии сбрасываются в конце сессии pytest."""
     yield
     ProjectServices.session_data.reset()
 
@@ -187,8 +196,8 @@ def browser():
     ProjectServices.logger.reset()
 ```
 
-Достать сервис по типу, без привязки к имени провайдера - удобно
-внутри элементов/форм, которые не видят конкретный подкласс:
+Получить службу по типу, без привязки к имени поставщика - удобно
+внутри элементов и форм, которые не видят конкретный подкласс:
 
 ```python
 from tquality_selenium import SeleniumServices
@@ -197,11 +206,11 @@ from my_project.clients import ApiClient
 client = SeleniumServices.get_service(ApiClient)
 ```
 
-`get_service` идёт в активный composition root (тот, что последним
-вызвал `setup()`), поэтому подменённые в подклассе провайдеры
+`get_service` идёт в активный композиционный корень (тот, что последним
+вызвал `setup()`), поэтому подменённые в подклассе поставщики
 обрабатываются прозрачно.
 
-## Screencast шагов
+## Видеозапись шагов
 
 ```python
 from tquality_selenium import LogLevel, step
@@ -210,12 +219,13 @@ from tquality_selenium import LogLevel, step
 def login():
     with step("Вход в систему", level=LogLevel.WITH_SCREENCAST):
         ...
-    # К allure-отчёту прикреплён webm с записью всего шага.
+    # К отчёту allure прикреплён webm с записью всего шага.
 ```
 
 Захват идёт в фоновом потоке с `contextvars.copy_context()`, чтобы не
 открывалась вторая сессия WebDriver. Стратегия захвата кадра:
-BiDi → CDP → классический `get_screenshot_as_png` (с warning на фолбеке).
+BiDi → CDP → классический `get_screenshot_as_png` (с предупреждением при
+откате на запасной вариант).
 
 ## Разработка
 
@@ -225,11 +235,11 @@ BiDi → CDP → классический `get_screenshot_as_png` (с warning н
 
 GitLab CI на каждом MR и на master:
 
-- **`mypy`** - strict-режим.
-- **`tests:linux`** - pytest без реальных браузеров.
-- **`tests:macos`** - healthcheck 5 браузеров на macos-runner.
+- **`mypy`** - строгий режим.
+- **`tests:linux`** - pytest без настоящих браузеров.
+- **`tests:macos`** - проверка работоспособности 5 браузеров на исполнителе с macOS.
 
-На git-теге `vX.Y.Z`:
+На теге git `vX.Y.Z`:
 
 - **`publish`** - сборка (версия из тега через `hatch-vcs`) и
   публикация в GitLab Package Registry.
