@@ -12,11 +12,11 @@ from __future__ import annotations
 
 import contextvars
 import os
-import re
+import pathlib
 import shutil
 import subprocess
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -95,21 +95,81 @@ def _find_chrome_binary() -> str | None:
     return None
 
 
-def _detect_chrome_version() -> int | None:
-    """Определить мажорную версию установленного Chrome (для uc.Chrome)."""
-    binary = _find_chrome_binary()
-    if binary is None:
-        return None
+def _selenium_manager_chromedriver() -> str | None:
+    """Резолвим chromedriver через Selenium Manager.
+
+    SM подбирает chromedriver под версию системного Chrome и кладёт
+    в свой кэш (правильная архитектура, Apple-подписан на macOS).
+    Возвращаем путь или None, если SM не смог.
+    """
     try:
-        output = subprocess.check_output(
-            [binary, "--version"], text=True, timeout=5,
-        )
-    except (subprocess.SubprocessError, OSError):
+        from selenium.webdriver.common.selenium_manager import SeleniumManager
+
+        result = SeleniumManager().binary_paths(["--browser", "chrome"])
+    except Exception:  # noqa: BLE001 - SeleniumManager падает по-разному
         return None
-    match = re.search(r"(\d+)", output)
-    if match:
-        return int(match.group(1))
+    driver_path = result.get("driver_path")
+    if isinstance(driver_path, str) and os.path.isfile(driver_path):
+        return driver_path
     return None
+
+
+def _copy_chromedriver_to_own_cache(sm_path: str) -> str:
+    """Скопировать SM-chromedriver в собственный кэш.
+
+    UC патчит chromedriver in-place. Если патчить SM-исходник, ломается
+    Apple-подпись бинарника, общего с обычным Chrome (Gatekeeper потом
+    убивает regular Chrome сигналом SIGKILL). Чтобы изолировать UC от
+    SM-кэша, копируем в `~/.cache/tquality-py-selenium/chromedriver/`
+    c сохранением platform/version-структуры пути (version-aware кэш).
+    """
+    sm_path_obj = pathlib.Path(sm_path)
+    own_root = pathlib.Path.home() / ".cache" / "tquality-py-selenium" / "chromedriver"
+    own_path = own_root.joinpath(*sm_path_obj.parts[-3:])
+    if not own_path.exists():
+        own_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(sm_path, own_path)
+        own_path.chmod(0o755)
+    return str(own_path)
+
+
+def _apply_linux_docker_chromium_flags(opts: Any) -> None:
+    """Добавить флаги, нужные Chromium-based браузерам только в Linux
+    под Docker: `--no-sandbox` (sandbox конфликтует с root-юзером
+    в контейнере) и `--disable-dev-shm-usage` (дефолтный /dev/shm
+    в Docker 64MB, не хватает Chrome'у). На macOS/Windows эти флаги
+    не нужны и иногда ломают браузер: на Windows Edge с `--no-sandbox`
+    падает на старте c `DevToolsActivePort file doesn't exist`.
+    """
+    if sys.platform == "linux":
+        opts.add_argument("--no-sandbox")
+        opts.add_argument("--disable-dev-shm-usage")
+
+
+def _ensure_chromedriver_runnable(chromedriver_path: str) -> None:
+    """Подготовить chromedriver-копию для UC.
+
+    UC патчит chromedriver in-place (правит несколько байт для обхода
+    антибот-детекции). На macOS патч ломает Apple-подпись бинарника, и
+    Gatekeeper убивает процесс при старте сервиса сигналом SIGKILL
+    (`Service ... unexpectedly exited. Status code was: -9`).
+
+    Прогоняем патч заранее тем же `Patcher`, что использует UC, и сразу
+    ad-hoc-подписываем результат через `codesign --sign -`. Когда дальше
+    `uc.Chrome(driver_executable_path=...)` инициализирует свой Patcher,
+    `is_binary_patched` вернет True и бинарник остается подписанным.
+    """
+    from undetected_chromedriver.patcher import Patcher
+
+    Patcher(executable_path=chromedriver_path).auto()
+    if sys.platform == "darwin":
+        # check=False: если codesign недоступен (минимальный image без
+        # CLI tools) - не валим запуск, а отдаем непадписанный бинарник.
+        # Gatekeeper тогда снова убьет, но это поведение видно в логе сервиса.
+        subprocess.run(
+            ["codesign", "--force", "--sign", "-", chromedriver_path],
+            check=False,
+        )
 
 
 class BrowserService:
@@ -145,8 +205,7 @@ class BrowserService:
             edge_opts = EdgeOptions()
             if active.headless:
                 edge_opts.add_argument("--headless=new")
-            edge_opts.add_argument("--no-sandbox")
-            edge_opts.add_argument("--disable-dev-shm-usage")
+            _apply_linux_docker_chromium_flags(edge_opts)
             driver = webdriver.Edge(options=edge_opts)
         elif browser is BrowserType.SAFARI:
             # Safari не поддерживает headless; игнорируем флаг.
@@ -156,23 +215,37 @@ class BrowserService:
             import undetected_chromedriver as uc
 
             uc_opts = uc.ChromeOptions()
-            # UC ищет Chrome только в PATH, поэтому на macOS/Windows
-            # задаем binary_location явно, иначе падает TypeError в сеттере.
+            # Указываем системный Chrome - UC ищет его только в PATH
+            # и без `binary_location` падает с TypeError на macOS/Windows.
             chrome_binary = _find_chrome_binary()
             if chrome_binary:
                 uc_opts.binary_location = chrome_binary
             if active.headless:
                 uc_opts.add_argument("--headless=new")
-            uc_opts.add_argument("--no-sandbox")
-            uc_opts.add_argument("--disable-dev-shm-usage")
-            version_main = _detect_chrome_version()
-            driver = uc.Chrome(options=uc_opts, version_main=version_main)
+            _apply_linux_docker_chromium_flags(uc_opts)
+            # Берём chromedriver, который уже подобрал Selenium Manager
+            # (правильная архитектура), копируем в свой кэш и патчим
+            # копию - SM-исходник трогать нельзя, им пользуется regular
+            # Chrome (см. _copy_chromedriver_to_own_cache).
+            sm_chromedriver = _selenium_manager_chromedriver()
+            chromedriver_path: str | None = None
+            if sm_chromedriver:
+                chromedriver_path = _copy_chromedriver_to_own_cache(sm_chromedriver)
+                _ensure_chromedriver_runnable(chromedriver_path)
+            # use_subprocess=True - без него UC закрывает Chrome сразу
+            # после старта (агрессивное управление процессом), сессия не
+            # успевает подняться. Документировано в UC discussion #2282
+            # и issue #2186.
+            driver = uc.Chrome(
+                options=uc_opts,
+                driver_executable_path=chromedriver_path,
+                use_subprocess=True,
+            )
         elif browser is BrowserType.CHROME:
             ch_opts = ChromeOptions()
             if active.headless:
                 ch_opts.add_argument("--headless=new")
-            ch_opts.add_argument("--no-sandbox")
-            ch_opts.add_argument("--disable-dev-shm-usage")
+            _apply_linux_docker_chromium_flags(ch_opts)
             driver = webdriver.Chrome(options=ch_opts)
         else:
             raise ValueError(f"Неподдерживаемый тип браузера: {browser!r}")

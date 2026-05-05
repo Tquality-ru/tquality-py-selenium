@@ -18,7 +18,7 @@ class OSUtils:
     _BROWSER_OS_SUPPORT: dict[BrowserType, set[str]] = {
         BrowserType.CHROME: {"linux", "darwin", "win32"},
         BrowserType.FIREFOX: {"linux", "darwin", "win32"},
-        BrowserType.EDGE: {"darwin", "win32"},
+        BrowserType.EDGE: {"linux", "darwin", "win32"},
         BrowserType.SAFARI: {"darwin"},
         BrowserType.UNDETECTED_CHROME: {"linux", "darwin", "win32"},
     }

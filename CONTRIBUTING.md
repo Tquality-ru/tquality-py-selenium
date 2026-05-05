@@ -73,7 +73,7 @@ uv run pytest -v
 
 ### Healthcheck браузеров на macOS-runner
 
-Job `tests:macos` запускает smoke-тесты всех 5 браузеров
+Job `tests:macos-browsers-healthcheck` запускает smoke-тесты всех 5 браузеров
 (`tests/test_browser_healthcheck.py`). Чтобы они проходили, на runner'е
 нужна разовая настройка:
 

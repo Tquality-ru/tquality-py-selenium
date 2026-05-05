@@ -263,7 +263,14 @@ GitLab CI runs on every MR and on master:
 
 - **`mypy`** — strict mode.
 - **`tests:linux`** — pytest without real browsers.
-- **`tests:macos`** — health check of all 5 browsers on a macOS runner.
+- **`tests:linux-browsers-healthcheck`** — chrome, firefox, edge,
+  undetected-chrome on a Linux runner (uses the
+  `selenium/standalone-all-browsers` image which bakes in the browsers
+  and drivers).
+- **`tests:macos-browsers-healthcheck`** — all 5 browsers (chrome, firefox,
+  edge, safari, undetected-chrome) on a macOS runner.
+- **`tests:windows-browsers-healthcheck`** — chrome, firefox, edge,
+  undetected-chrome on a Windows runner.
 
 On a git tag `vX.Y.Z`:
 

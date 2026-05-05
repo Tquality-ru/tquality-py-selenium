@@ -40,13 +40,11 @@ def test_safari_only_on_macos(monkeypatch: pytest.MonkeyPatch) -> None:
     assert OSUtils.is_browser_supported_on_current_os(BrowserType.SAFARI) is True
 
 
-def test_edge_on_mac_and_windows_only(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("sys.platform", "linux")
-    assert OSUtils.is_browser_supported_on_current_os(BrowserType.EDGE) is False
-    monkeypatch.setattr("sys.platform", "darwin")
-    assert OSUtils.is_browser_supported_on_current_os(BrowserType.EDGE) is True
-    monkeypatch.setattr("sys.platform", "win32")
-    assert OSUtils.is_browser_supported_on_current_os(BrowserType.EDGE) is True
+def test_edge_supported_on_all_platforms(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Microsoft теперь публикует Edge для Linux наравне с macOS/Windows.
+    for platform in ("linux", "darwin", "win32"):
+        monkeypatch.setattr("sys.platform", platform)
+        assert OSUtils.is_browser_supported_on_current_os(BrowserType.EDGE) is True
 
 
 def test_browser_service_raises_on_unsupported_os(

@@ -263,7 +263,14 @@ GitLab CI на каждом MR и на master:
 
 - **`mypy`** - строгий режим.
 - **`tests:linux`** - pytest без настоящих браузеров.
-- **`tests:macos`** - проверка работоспособности 5 браузеров на исполнителе с macOS.
+- **`tests:linux-browsers-healthcheck`** - chrome, firefox, edge,
+  undetected-chrome на linux-runner'е (использует образ
+  `selenium/standalone-all-browsers` с запечёнными браузерами
+  и драйверами).
+- **`tests:macos-browsers-healthcheck`** - все 5 браузеров (chrome, firefox,
+  edge, safari, undetected-chrome) на macos-runner'е.
+- **`tests:windows-browsers-healthcheck`** - chrome, firefox, edge,
+  undetected-chrome на windows-runner'е.
 
 На теге git `vX.Y.Z`:
 

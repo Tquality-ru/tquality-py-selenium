@@ -17,9 +17,20 @@
   распаковывается в `(str, str)` для selenium благодаря `ByKind` от `str`.
 - Английский `README.md` (по умолчанию для PyPI), русский переведен в
   `README.ru.md`. В шапке обоих файлов - переключатель языков.
-- CI-джоб `publish-pypi`: на git-теге `vX.Y.Z` собирает пакет и
-  загружает в публичный PyPI (требует переменную `PYPI_TOKEN` в
-  настройках GitLab CI/CD; см. CONTRIBUTING.md).
+- Edge помечен поддерживаемым на Linux: Microsoft публикует Edge для
+  Linux наравне с macOS/Windows. `OSUtils._BROWSER_OS_SUPPORT[EDGE]`
+  расширен до `{linux, darwin, win32}`, `test_edge_smoke` получил
+  mark `linux`.
+- CI: добавлены job'ы `publish-pypi` (загрузка в PyPI на git-теге
+  `vX.Y.Z`, требует `PYPI_TOKEN`), `tests:linux-browsers-healthcheck`
+  и `tests:windows-browsers-healthcheck`. Linux-job использует
+  `selenium/standalone-all-browsers:latest` - chrome, firefox, edge
+  и matching-драйверы запечены в образ, нет зависимости от
+  github.com при запуске.
+- Dev-зависимость `pytest-timeout>=2.3` + `timeout = 120` в
+  `[tool.pytest.ini_options]` - бьёт зависшие тесты thread-таймаутом
+  с traceback'ом всех потоков, job не упирается в 2h-timeout
+  GitLab.
 
 ### Изменено
 
@@ -41,6 +52,32 @@
 - sdist дополнительно включает `README.ru.md` и `CHANGELOG.md`.
 - `CollectionFactory` / `DomField` внутри используют свой `ByKind`
   вместо `selenium.By` (внешний API не изменился).
+- Windows-CI `tests:windows-browsers-healthcheck`: PowerShell
+  before_script ставит `uv` через `irm https://astral.sh/uv/install.ps1`
+  (вместо `throw "uv не установлен"`), а `PYTHONUTF8=1` в `variables`
+  заставляет Python читать UTF-8 файлы независимо от системной
+  кодовой страницы (на Russian Windows дефолт - cp1251, и
+  `tquality-py-core` падал на чтении нашего pyproject.toml с
+  кириллическими комментариями).
+
+### Исправлено
+
+- `BrowserType.UNDETECTED_CHROME` на Apple Silicon: UC хардкодит
+  платформу `mac-x64` в патчере (`patcher.py:113`), из-за чего на
+  arm64-runner'ах скачивался x86_64 chromedriver, несовместимый
+  с arm64 Chrome. Теперь chromedriver резолвится через Selenium
+  Manager (правильная архитектура), копируется в собственный кэш
+  `~/.cache/tquality-py-selenium/chromedriver/<platform>/<version>/`
+  и патчится там; на macOS дополнительно ad-hoc-подписывается через
+  `codesign --force --sign -`, иначе Gatekeeper убивает изменённый
+  патчем бинарник сигналом SIGKILL.
+- `uc.Chrome(use_subprocess=True)`: без флага UC закрывает Chrome
+  сразу после старта, сессия не успевает подняться. См. UC
+  discussion #2282 / issue #2186.
+- `--no-sandbox` и `--disable-dev-shm-usage` применяются только на
+  Linux (helper `_apply_linux_docker_chromium_flags`). Это workaround
+  под root-юзера в Docker и маленький `/dev/shm`; на Windows/macOS
+  они либо не нужны, либо ломают браузер.
 
 ### Удалено
 
@@ -86,7 +123,9 @@ DI-провайдерами Logger и `config.json5`).
   шаги уровня `LogLevel.WITH_SCREENCAST`.
 - Под-блок `screencast` в `SeleniumConfig` с параметрами `fps`,
   `frame_interval`, `max_width`, `max_duration`.
-- Поле-выбор `browser` + **отдельные под-блоки для каждого браузера**
+- Поле-выбор `browser` + * pid=19647 revision=9ffb4aa0 version=18.8.0                                                                                                         
+  report.xml: found 1 matching artifact files and directories                                                                                                                                                                 
+  Uploading artifacts as "junit" to coordinator... 201 Created  correlation_id=01KQW5A3BTKZQ6PJ294QFWPM76 id=7042 responseStatus=201 Created token=64_Vx_xfZ         *отдельные под-блоки для каждого браузера**
   (`chrome`, `firefox`, `edge`, `safari`, `undetected_chrome`) со
   структурой `BrowserConfig` (`headless`, `window_width/height`,
   `page_load_timeout`). Все блоки живут одновременно - переключение

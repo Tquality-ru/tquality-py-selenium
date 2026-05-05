@@ -11,9 +11,17 @@
 
 Используется data-URL, чтобы не зависеть от сети.
 
-Все тесты маркированы `macos`, потому что macOS-runner - единственная
-платформа, где доступны все пять браузеров (Chrome, Firefox, Edge, Safari,
-undetected-chrome). На linux-runner эти тесты отфильтровываются.
+Каждый smoke маркирован всеми ОС, на которых браузер поддерживается
+(см. `OSUtils._BROWSER_OS_SUPPORT`). CI-job выбирает свою подсетку:
+
+- `tests:macos-browsers-healthcheck`: `-m macos` - все 5 браузеров;
+- `tests:linux-browsers-healthcheck`: `-m linux` - chrome, firefox,
+  edge, undetected (selenium image поставляет всё запечённым);
+- `tests:windows-browsers-healthcheck`: `-m windows` - chrome, firefox,
+  edge, undetected.
+
+Юнит-тесты `tests:linux` фильтруются через `-m "not macos"` -
+любой smoke имеет хотя бы метку `macos` и не попадает в этот job.
 """
 from __future__ import annotations
 
@@ -47,18 +55,24 @@ def _smoke(browser: BrowserType, *, headless: bool = True) -> None:
 
 
 @pytest.mark.macos
+@pytest.mark.linux
+@pytest.mark.windows
 @pytest.mark.chrome
 def test_chrome_smoke() -> None:
     _smoke(BrowserType.CHROME)
 
 
 @pytest.mark.macos
+@pytest.mark.linux
+@pytest.mark.windows
 @pytest.mark.firefox
 def test_firefox_smoke() -> None:
     _smoke(BrowserType.FIREFOX)
 
 
 @pytest.mark.macos
+@pytest.mark.linux
+@pytest.mark.windows
 @pytest.mark.edge
 def test_edge_smoke() -> None:
     _smoke(BrowserType.EDGE)
@@ -72,6 +86,8 @@ def test_safari_smoke() -> None:
 
 
 @pytest.mark.macos
+@pytest.mark.linux
+@pytest.mark.windows
 @pytest.mark.undetected
 def test_undetected_chrome_smoke() -> None:
     _smoke(BrowserType.UNDETECTED_CHROME)

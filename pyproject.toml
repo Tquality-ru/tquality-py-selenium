@@ -63,6 +63,10 @@ tquality_selenium_page_source = "tquality_selenium.page_source_plugin"
 [dependency-groups]
 dev = [
     "mypy>=1.11",
+    # pytest-timeout: автообрыв зависших тестов с tracebackом всех потоков
+    # вместо ожидания 2h-таймаута job'а на CI. Метод `thread` применяется
+    # ко всем тестам глобально через `[tool.pytest.ini_options].timeout`.
+    "pytest-timeout>=2.3",
     "pytest>=8.0",
 ]
 
@@ -99,6 +103,11 @@ only-include = [
 ]
 
 [tool.pytest.ini_options]
+# 120 секунд должно с запасом покрывать любой smoke (поднять браузер +
+# открыть data-URL); если тест висит дольше - почти наверняка проблема
+# в окружении/драйвере, а не в логике, и job упирается в долгий timeout.
+timeout = 120
+timeout_method = "thread"
 markers = [
     "macos: тесты требуют macOS-runner (все 5 браузеров установлены)",
     "windows: тесты требуют Windows",
@@ -126,6 +135,7 @@ warn_unused_ignores = true
 [[tool.mypy.overrides]]
 module = [
     "undetected_chromedriver",
+    "undetected_chromedriver.*",
     "dependency_injector",
     "dependency_injector.*",
     "PIL",

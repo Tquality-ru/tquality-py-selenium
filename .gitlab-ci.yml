@@ -52,7 +52,7 @@ tests:linux:
 
 # Healthcheck всех 5 браузеров на macos-runner (Chrome, Firefox, Edge,
 # Safari, undetected-chrome). Только macOS имеет все браузеры вместе.
-tests:macos:
+tests:macos-browsers-healthcheck:
   stage: check
   tags:
     - macos
@@ -74,6 +74,95 @@ tests:macos:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   # Если macos-runner временно недоступен - пайплайн не падает целиком.
+  allow_failure: true
+
+# Healthcheck браузеров на linux-runner (Chrome, Firefox, Edge,
+# undetected-chrome). Safari на linux не поддерживается.
+#
+# Используем `selenium/standalone-all-browsers` - официальный selenium-
+# образ, в котором chrome+chromedriver, firefox+geckodriver,
+# edge+msedgedriver запечены в build. Дефолтный uv-образ заставляет
+# Selenium Manager тянуть geckodriver с github.com, а на closed-network
+# runner'ах egress на github обычно закрыт. Selenium-образ убирает эту
+# зависимость.
+#
+# Особенности образа:
+#   - entrypoint запускает selenium-server, обнуляем;
+#   - SE_OFFLINE=true в env - SM в этом режиме не качает chromedriver,
+#     наш UC-путь его специально просит. Снимаем через variables;
+#   - /home/seluser/.local владеет root, нужно переотдать seluser,
+#     иначе uv и UC не могут писать в свой кэш;
+#   - python+pip в образе есть (selenium-сервер на python), но uv нет -
+#     ставим через `pip install uv`. UC и uv качают свои Python'ы в
+#     ~/.local/share, поэтому переадресуем UV_PYTHON_INSTALL_DIR в /tmp,
+#     иначе uv ругается на permission denied;
+#   - hatch-vcs (наш build-backend) требует git CLI для определения
+#     версии - в selenium-образе git не установлен, ставим через apt.
+tests:linux-browsers-healthcheck:
+  stage: check
+  image:
+    name: selenium/standalone-all-browsers:latest
+    entrypoint: [""]
+  variables:
+    SE_OFFLINE: ""
+    UV_PYTHON_INSTALL_DIR: /tmp/uv-python
+  before_script:
+    - sudo chown -R seluser:seluser /home/seluser/.local
+    - sudo apt-get update -qq
+    - sudo apt-get install -y --no-install-recommends git
+    - pip install --quiet uv
+    - uv sync
+  script:
+    - uv run pytest -v -m "linux" --junitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+    paths:
+      - report.xml
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  # Скачивание CfT-браузеров идет в интернет; временные сетевые проблемы
+  # не должны рушить весь пайплайн.
+  allow_failure: true
+
+# Healthcheck браузеров на windows-runner (Chrome, Firefox, Edge,
+# undetected-chrome). Safari на Windows не поддерживается.
+tests:windows-browsers-healthcheck:
+  stage: check
+  tags:
+    - windows
+  image: null  # windows-runner - это shell-executor, не Docker
+  variables:
+    # На Russian Windows дефолтная file-encoding - cp1251, и
+    # tquality-py-core/config.py:47 читает наш pyproject.toml без явного
+    # encoding'а - падает на кириллических комментариях. PYTHONUTF8=1
+    # принудительно включает UTF-8 mode (PEP 540), чинит чтение
+    # любого UTF-8 файла без правок в коде.
+    PYTHONUTF8: "1"
+  before_script:
+    # Windows-runner GitLab по умолчанию использует PowerShell. Ставим
+    # uv через official install.ps1 от astral (idempotent - переустановка
+    # на уже-инсталлированном тоже работает).
+    - powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+    - $env:PATH = "$env:USERPROFILE\.local\bin;$env:PATH"
+    - uv sync
+  cache: []
+  script:
+    - uv run pytest -v -m "windows" --junitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+    paths:
+      - report.xml
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  # Если windows-runner временно недоступен - пайплайн не падает целиком.
   allow_failure: true
 
 mirror-to-github:
