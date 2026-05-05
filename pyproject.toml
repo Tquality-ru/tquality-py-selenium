@@ -1,13 +1,37 @@
 [project]
 name = "tquality-py-selenium"
 dynamic = ["version"]
-description = "Selenium-интеграция поверх tquality-py-core"
+description = "Selenium integration for the tquality test automation framework, built on tquality-py-core."
+readme = "README.md"
 requires-python = ">=3.12"
 authors = [{name = "ООО «Точка качества»"}]
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
+keywords = [
+    "testing",
+    "test-automation",
+    "qa",
+    "selenium",
+    "webdriver",
+    "page-object",
+    "allure",
+    "tquality",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Quality Assurance",
+    "Framework :: Pytest",
+    "Typing :: Typed",
+]
 dependencies = [
-    "tquality-py-core @ git+https://github.com/Tquality-ru/tquality-py-core.git@v0.1.3",
+    "tquality-py-core>=0.1.4",
     "selenium>=4.25",
     "undetected-chromedriver>=3.5",
     # Python 3.12 удалил distutils из stdlib, а undetected-chromedriver
@@ -23,6 +47,12 @@ dependencies = [
     "imageio-ffmpeg>=0.5",
     "numpy>=1.26",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Tquality-ru/tquality-py-selenium"
+Repository = "https://github.com/Tquality-ru/tquality-py-selenium"
+Issues = "https://github.com/Tquality-ru/tquality-py-selenium/issues"
+Changelog = "https://github.com/Tquality-ru/tquality-py-selenium/blob/master/CHANGELOG.md"
 
 [project.scripts]
 tquality-selenium-config = "tquality_selenium.cli:main"
@@ -60,14 +90,13 @@ only-include = [
     "schema",
     "scripts",
     "README.md",
+    "README.ru.md",
     "LICENSE",
     "NOTICE",
     "CONTRIBUTING.md",
+    "CHANGELOG.md",
     "pyproject.toml",
 ]
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.pytest.ini_options]
 markers = [

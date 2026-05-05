@@ -1,8 +1,8 @@
 """Базовый UI-элемент.
 
-Идентифицируется парой `(by, value)`. Сервисы (browser, logger, waiters,
-js_actions) резолвятся через активный composition root `SeleniumServices`,
-настроенный в `conftest.py` через `YourServices.setup()`.
+Идентифицируется локатором `By` (NamedTuple `(by, value)`). Сервисы
+(browser, logger, waiters, js_actions) резолвятся через активный composition
+root `SeleniumServices`, настроенный в `conftest.py` через `YourServices.setup()`.
 
 `element.js_actions` возвращает `ElementJsActions`, привязанный к данному
 элементу через ленивый резолвер (`self._find`), что снимает stale reference
@@ -15,14 +15,14 @@ from typing import Any
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.remote.webelement import WebElement
 
+from tquality_selenium.elements.by import By
 from tquality_selenium.services.js_actions import ElementJsActions
 
 
 class BaseElement:
-    def __init__(self, by: str, value: str, name: str = "") -> None:
+    def __init__(self, by: By, name: str = "") -> None:
         self._by = by
-        self._value = value
-        self._name = name or f"{self.__class__.__name__}({by}={value!r})"
+        self._name = name or f"{self.__class__.__name__}({by.by.value}={by.value!r})"
 
     @property
     def _browser(self) -> Any:
@@ -50,7 +50,7 @@ class BaseElement:
         return ElementJsActions(self._find)
 
     def _find(self) -> WebElement:
-        result: WebElement = self._browser.find_element(self._by, self._value)
+        result: WebElement = self._browser.find_element(*self._by)
         return result
 
     @property
@@ -66,7 +66,7 @@ class BaseElement:
 
     @property
     def is_present(self) -> bool:
-        elements = self._browser.find_elements(self._by, self._value)
+        elements = self._browser.find_elements(*self._by)
         return len(elements) > 0
 
     @property
@@ -97,38 +97,28 @@ class BaseElement:
         return self
 
     def wait_for_displayed(self, timeout: float | None = None) -> BaseElement:
-        self._element_waiter.until_visible(
-            self._by, self._value, self._name, timeout,
-        )
+        self._element_waiter.until_visible(self._by, self._name, timeout)
         return self
 
     def wait_until_visible(self, timeout: float | None = None) -> BaseElement:
-        self._element_waiter.until_visible(
-            self._by, self._value, self._name, timeout,
-        )
+        self._element_waiter.until_visible(self._by, self._name, timeout)
         return self
 
     def wait_until_clickable(self, timeout: float | None = None) -> BaseElement:
-        self._element_waiter.until_clickable(
-            self._by, self._value, self._name, timeout,
-        )
+        self._element_waiter.until_clickable(self._by, self._name, timeout)
         return self
 
     def wait_until_invisible(self, timeout: float | None = None) -> BaseElement:
-        self._element_waiter.until_invisible(
-            self._by, self._value, self._name, timeout,
-        )
+        self._element_waiter.until_invisible(self._by, self._name, timeout)
         return self
 
     def wait_until_not_present(self, timeout: float | None = None) -> BaseElement:
-        self._element_waiter.until_not_present(
-            self._by, self._value, self._name, timeout,
-        )
+        self._element_waiter.until_not_present(self._by, self._name, timeout)
         return self
 
     def click(self) -> None:
         self._log.info("Click: %s", self._name)
-        self._element_waiter.until_clickable(self._by, self._value, self._name)
+        self._element_waiter.until_clickable(self._by, self._name)
         with self.js_actions.maybe_highlight():
             self._find().click()
 

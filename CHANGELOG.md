@@ -3,6 +3,54 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
+## [0.1.5] - 2026-05-05
+
+**Первая публикация в публичный [PyPI](https://pypi.org/project/tquality-py-selenium/).**
+
+### Добавлено
+
+- `By` (`NamedTuple`) и `ByKind` (`str`-Enum) в
+  `tquality_selenium.elements.by` - собственные типы локаторов с
+  классовыми методами `By.id(...)`, `By.xpath(...)`, `By.css_selector(...)`,
+  `By.name(...)`, `By.class_name(...)`, `By.tag_name(...)`,
+  `By.link_text(...)`, `By.partial_link_text(...)`. `By` прозрачно
+  распаковывается в `(str, str)` для selenium благодаря `ByKind` от `str`.
+- Английский `README.md` (по умолчанию для PyPI), русский переведен в
+  `README.ru.md`. В шапке обоих файлов - переключатель языков.
+- CI-джоб `publish-pypi`: на git-теге `vX.Y.Z` собирает пакет и
+  загружает в публичный PyPI (требует переменную `PYPI_TOKEN` в
+  настройках GitLab CI/CD; см. CONTRIBUTING.md).
+
+### Изменено
+
+- **Breaking.** Сигнатура `BaseElement.__init__(by: str, value: str, name="")`
+  заменена на `BaseElement(by: By, name="")`. То же для всех подклассов
+  (`Button`, `CheckBox`, `Input`, `Label`) и методов `ElementFactory`:
+  `element/button/checkbox/label/input(by: By, name="")`.
+  Миграция: `Button(By.ID, "submit", "Войти")` →
+  `Button(By.id("submit"), "Войти")`.
+- **Breaking.** `ElementWaiter.until_visible/clickable/present/invisible/`
+  `not_present` теперь принимают единый `By`-локатор вместо
+  пары `(by: str, value: str)`.
+- Зависимость `tquality-py-core` переехала с git-URL (`@v0.1.3`) на
+  публичный PyPI: `tquality-py-core>=0.1.4`. У потребителей `tquality-py-selenium`
+  больше нет необходимости в `[tool.hatch.metadata] allow-direct-references`.
+- `pyproject.toml` обогащен PyPI-метаданными: английский `description`,
+  `readme = "README.md"`, `keywords`, `classifiers`
+  (включая `Framework :: Pytest`, `Typing :: Typed`), `[project.urls]`.
+- sdist дополнительно включает `README.ru.md` и `CHANGELOG.md`.
+- `CollectionFactory` / `DomField` внутри используют свой `ByKind`
+  вместо `selenium.By` (внешний API не изменился).
+
+### Удалено
+
+- Реэкспорт `By` из `tquality_selenium.browser`: используйте
+  `from tquality_selenium import By` (свой NamedTuple) или
+  `from selenium.webdriver.common.by import By` (если действительно
+  нужен селениумовский enum, что больше не требуется в API фреймворка).
+- `[tool.hatch.metadata] allow-direct-references = true` из
+  `pyproject.toml` - исчез вместе с git-зависимостью на ядро.
+
 ## [0.1.4] - 2026-04-25
 
 ### Добавлено

@@ -36,7 +36,8 @@ uv sync
 
 ### Доступные теги
 
-- `[{module}]` - название затронутого модуля: `[Config]`, `[Browser]`, `[Elements]`, `[Container]`, `[CI]`
+- `[{module}]` - название затронутого модуля: `[Config]`, `[Browser]`,
+  `[Elements]`, `[Services]`, `[Container]`, `[Reporting]`, `[CI]`
 - `[Docs]` - изменения документации
 - `[Fix]` - исправление бага без привязки к issue
 - `[Fix #{issueId}]` - исправление бага по конкретному issue
@@ -48,6 +49,8 @@ uv sync
 ```
 [Browser] Поддержка запуска Firefox в headless-режиме
 [Elements][Feature] Добавлен класс Select для выпадающих списков
+[Services][Feature] CollectionFactory: поддержка XPath-полей
+[Reporting][Feature] page_source прикрепляется к allure при падении теста
 [Fix #7] Исправлен stale element в type_text
 [CI] Добавлен job проверки pylint
 ```
@@ -133,16 +136,39 @@ git tag -a v0.2.0 -m "v0.2.0"
 git push origin v0.2.0
 ```
 
-Push тега `vX.Y.Z` триггерит два CI-джоба в stage `release`:
+Push тега `vX.Y.Z` триггерит три CI-джоба в stage `release`:
 
-- **`publish`** - сборка (`uv build` получает версию из тега через
-  `hatch-vcs`) и публикация в GitLab Package Registry
-  (`https://git.tquality.ru/frameworks/python/tquality-py-selenium/-/packages`).
+- **`publish-pypi`** - сборка (`uv build` получает версию из тега через
+  `hatch-vcs`) и публикация пакета в публичный
+  [PyPI](https://pypi.org/project/tquality-py-selenium/). Это основной канал
+  установки для всех потребителей.
+- **`publish`** - дублирующая публикация в GitLab Package Registry
+  (`https://git.tquality.ru/frameworks/python/tquality-py-selenium/-/packages`)
+  как внутреннее зеркало.
 - **`mirror-to-github`** - пушит `master` и сам тег в
   https://github.com/Tquality-ru/tquality-py-selenium (feature-ветки и
   служебные refs не зеркалируются).
 
-### Установка из GitLab Package Registry
+### Настройка публикации в PyPI (однократно)
+
+1. На https://pypi.org/manage/account/token/ создать API-токен со
+   scope, ограниченным проектом `tquality-py-selenium` (после первой
+   ручной публикации). Для самой первой публикации нужен токен с
+   глобальным scope.
+2. В GitLab: **Settings → CI/CD → Variables** добавить переменную:
+   - Key: `PYPI_TOKEN`
+   - Value: токен с PyPI (включая префикс `pypi-`)
+   - Protected: yes (только для protected refs, включая теги `v*`)
+   - Masked: yes
+
+### Установка пакета из GitLab Package Registry (внутренний канал)
+
+```bash
+uv pip install tquality-py-selenium \
+  --index-url "https://gitlab-ci-token:${GITLAB_TOKEN}@git.tquality.ru/api/v4/projects/43/packages/pypi/simple"
+```
+
+Либо добавьте в `pyproject.toml` консьюмера:
 
 ```toml
 [[tool.uv.index]]
@@ -154,13 +180,14 @@ explicit = true
 tquality-py-selenium = { index = "tquality" }
 ```
 
-### Настройка зеркалирования (однократно)
+### Настройка зеркалирования в GitHub (однократно)
 
-1. Создать GitHub Personal Access Token с правами `public_repo`.
+1. Создать GitHub Personal Access Token с правами `public_repo` (или `repo`
+   для приватных).
 2. В GitLab: **Settings → CI/CD → Variables** добавить переменную:
    - Key: `GITHUB_MIRROR_TOKEN`
    - Value: токен с GitHub
-   - Protected: yes
+   - Protected: yes (только для protected refs, включая теги `v*`)
    - Masked: yes
 
 Для публикации в Package Registry дополнительная настройка не нужна: джоб
@@ -170,27 +197,38 @@ tquality-py-selenium = { index = "tquality" }
 
 ```
 tquality-py-selenium/
-├── .gitlab-ci.yml          # CI: mypy + pytest на MR и master, зеркалирование на тег
-├── pyproject.toml          # конфиг проекта, mypy, зависимости (core - git-зависимость)
+├── .gitlab-ci.yml             # CI: mypy + pytest, на тег - publish-pypi/publish/mirror-to-github
+├── pyproject.toml             # конфиг проекта, mypy, зависимости (core - с PyPI)
 ├── schema/
-│   └── config.schema.json  # JSON-схема SeleniumConfig (публикуется через jsDelivr)
+│   └── config.schema.json     # JSON-схема SeleniumConfig (публикуется через jsDelivr)
 ├── scripts/
 │   └── install-hooks.sh
 ├── src/tquality_selenium/
-│   ├── browser.py          # BrowserService, is_browser_started
-│   ├── cli.py              # CLI: tquality-selenium-config init / schema
-│   ├── config.py           # SeleniumConfig, BrowserType
-│   ├── container.py        # DI-контейнер, wire_core_integrations()
-│   ├── os_utils.py         # OSUtils: карта поддержки браузеров ОС
-│   ├── schema.py           # генератор JSON-схемы для SeleniumConfig
-│   ├── screenshot_provider.py
+│   ├── browser.py             # BrowserService, is_browser_started
+│   ├── cli.py                 # CLI: tquality-selenium-config init / schema
+│   ├── config.py              # SeleniumConfig, BrowserType
+│   ├── container.py           # SeleniumServices (composition root, setup())
+│   ├── os_utils.py            # OSUtils: карта поддержки браузеров ОС
+│   ├── page_source_plugin.py  # pytest-плагин: page_source -> allure при падении
+│   ├── schema.py              # генератор JSON-схемы для SeleniumConfig
+│   ├── screencast_provider.py # webm-видеозапись шага (BiDi -> CDP -> screenshot)
+│   ├── screenshot_provider.py # снимок экрана для CRITICAL-шагов
 │   ├── elements/
-│   │   ├── base_element.py # концретный BaseElement поверх core.BaseElement
+│   │   ├── base_element.py    # BaseElement (DI-резолверы, локатор как By)
 │   │   ├── button.py
+│   │   ├── by.py              # By NamedTuple + ByKind str-Enum (own типы локаторов)
 │   │   ├── checkbox.py
 │   │   ├── input.py
 │   │   └── label.py
-│   └── pages/              # реэкспорт BaseForm из ядра
+│   ├── pages/                 # BaseForm (с element_factory из контейнера)
+│   └── services/
+│       ├── collection_factory.py # фабрика коллекций Pydantic-моделей из DOM
+│       ├── element_factory.py    # фабрика типизированных элементов
+│       ├── element_waiter.py     # explicit waits по локатору
+│       ├── js_actions.py         # JsActions + ElementJsActions
+│       └── waiter.py             # обертка над WebDriverWait
 ├── tests/
-└── README.md
+├── README.md                  # английский (по умолчанию для PyPI)
+├── README.ru.md               # русский
+└── CHANGELOG.md
 ```

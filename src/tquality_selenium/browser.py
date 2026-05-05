@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
-from selenium.webdriver.common.by import By
 from selenium.webdriver.edge.options import Options as EdgeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -204,6 +203,5 @@ class BrowserService:
 __all__ = [
     "BrowserNotSupportedError",
     "BrowserService",
-    "By",
     "is_browser_started",
 ]

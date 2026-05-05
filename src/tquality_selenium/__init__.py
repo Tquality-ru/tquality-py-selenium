@@ -10,7 +10,15 @@ from tquality_core import (
 from tquality_selenium.browser import BrowserService
 from tquality_selenium.config import BrowserType, SeleniumConfig
 from tquality_selenium.container import SeleniumServices
-from tquality_selenium.elements import BaseElement, Button, CheckBox, Input, Label
+from tquality_selenium.elements import (
+    BaseElement,
+    Button,
+    By,
+    ByKind,
+    CheckBox,
+    Input,
+    Label,
+)
 from tquality_selenium.os_utils import OSUtils
 from tquality_selenium.pages import BaseForm
 from tquality_selenium.screencast_provider import SeleniumScreencastProvider
@@ -40,6 +48,8 @@ __all__ = [
     "BrowserService",
     "BrowserType",
     "Button",
+    "By",
+    "ByKind",
     "CheckBox",
     "CollectionFactory",
     "DomField",

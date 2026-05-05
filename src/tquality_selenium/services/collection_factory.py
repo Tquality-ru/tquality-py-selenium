@@ -6,7 +6,6 @@
 
 ```python
 from pydantic import BaseModel
-from selenium.webdriver.common.by import By
 from tquality_selenium import DomField, SeleniumServices, CollectionFactory
 
 class Product(BaseModel):
@@ -22,7 +21,8 @@ from __future__ import annotations
 from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
-from selenium.webdriver.common.by import By
+
+from tquality_selenium.elements.by import ByKind
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -48,7 +48,7 @@ class DomField:
             attr: DOM-атрибут; если None - берётся `textContent`.
             **kwargs: пробрасываются в `pydantic.Field`.
         """
-        return DomField._build(By.CSS_SELECTOR, selector, attr, **kwargs)
+        return DomField._build(ByKind.CSS_SELECTOR, selector, attr, **kwargs)
 
     @staticmethod
     def xpath(selector: str, *, attr: str | None = None, **kwargs: Any) -> Any:
@@ -57,7 +57,7 @@ class DomField:
         XPath вычисляется относительно элемента-контейнера через
         `document.evaluate` с `contextNode=el`.
         """
-        return DomField._build(By.XPATH, selector, attr, **kwargs)
+        return DomField._build(ByKind.XPATH, selector, attr, **kwargs)
 
     @staticmethod
     def _build(
@@ -139,9 +139,9 @@ class CollectionFactory:
             value = meta[_VALUE_KEY].replace("'", "\\'")
             attr = meta.get(_ATTR_KEY)
 
-            if by == By.CSS_SELECTOR:
+            if by == ByKind.CSS_SELECTOR:
                 selector_js = f"el.querySelector('{value}')"
-            elif by == By.XPATH:
+            elif by == ByKind.XPATH:
                 selector_js = (
                     f"document.evaluate('{value}', el, null, "
                     f"XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue"

@@ -135,24 +135,24 @@ publish:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
 
 # Публикация в публичный PyPI (https://pypi.org) на git-теге vX.Y.Z.
-# Требует переменную PYPI_API_TOKEN в настройках CI/CD (protected, masked).
-# Временно отключено: токен публичного PyPI еще не выпущен.
-# Раскомментируйте, когда PYPI_API_TOKEN будет добавлен в Settings -> CI/CD.
-#publish-pypi:
-#  stage: release
-#  before_script: []
-#  cache: []
-#  interruptible: false
-#  script:
-#    - test -n "$PYPI_API_TOKEN" || { echo "PYPI_API_TOKEN не задан"; exit 1; }
-#    - uv build
-#    - >
-#      uv publish
-#      --username __token__
-#      --password "$PYPI_API_TOKEN"
-#  artifacts:
-#    paths:
-#      - dist/
-#    expire_in: 1 month
-#  rules:
-#    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+# Требует переменную PYPI_TOKEN в настройках CI/CD (protected, masked) -
+# токен от https://pypi.org/manage/account/token/, scope: проект
+# tquality-py-selenium.
+publish-pypi:
+  stage: release
+  before_script: []
+  cache: []
+  interruptible: false
+  script:
+    - test -n "$PYPI_TOKEN" || { echo "PYPI_TOKEN не задан"; exit 1; }
+    - uv build
+    - >
+      uv publish
+      --username __token__
+      --password "$PYPI_TOKEN"
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 month
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/

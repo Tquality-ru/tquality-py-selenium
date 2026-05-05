@@ -25,7 +25,7 @@ class Input(BaseElement):
         между поиском и вводом DOM перерендерится.
         """
         self._log.info("Type into %s: %s", self._name, text)
-        self._element_waiter.until_visible(self._by, self._value, self._name)
+        self._element_waiter.until_visible(self._by, self._name)
         with self.js_actions.maybe_highlight():
             self._find().send_keys(Keys.CONTROL, "a", Keys.NULL, text)
 
