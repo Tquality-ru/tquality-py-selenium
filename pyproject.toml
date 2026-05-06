@@ -31,7 +31,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "tquality-py-core>=0.1.4",
+    "tquality-py-core>=0.1.5",
     "selenium>=4.25",
     "undetected-chromedriver>=3.5",
     # Python 3.12 удалил distutils из stdlib, а undetected-chromedriver

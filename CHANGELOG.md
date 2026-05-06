@@ -44,7 +44,7 @@
   `not_present` теперь принимают единый `By`-локатор вместо
   пары `(by: str, value: str)`.
 - Зависимость `tquality-py-core` переехала с git-URL (`@v0.1.3`) на
-  публичный PyPI: `tquality-py-core>=0.1.4`. У потребителей `tquality-py-selenium`
+  публичный PyPI: `tquality-py-core>=0.1.5`. У потребителей `tquality-py-selenium`
   больше нет необходимости в `[tool.hatch.metadata] allow-direct-references`.
 - `pyproject.toml` обогащен PyPI-метаданными: английский `description`,
   `readme = "README.md"`, `keywords`, `classifiers`
