@@ -57,6 +57,7 @@ def browser():
 """
 from __future__ import annotations
 
+import contextvars
 import inspect
 import os
 from contextlib import contextmanager
@@ -83,16 +84,29 @@ from tquality_selenium.services.waiter import Waiter
 
 def _resolve_driver_from_active() -> Any:
     """Резолвит WebDriver через активный composition root (см. setup())."""
-    if _active_services is None:
+    active = _resolve_active()
+    if active is None:
         raise RuntimeError("SeleniumServices.setup() не вызван")
-    return _active_services.browser().driver
+    return active.browser().driver
 
 T = TypeVar("T")
 
-# Активный composition root. Устанавливается в setup() последнего вызванного
-# подкласса. Используется `get_service()` для резолва сервисов элементами/формами
-# без явной инъекции.
-_active_services: type[SeleniumServices] | None = None
+# Активный composition root - двухуровневая модель:
+# 1) `_default_services` - process-wide default, ставится `setup()`. Виден из
+#    любого треда; нужен для текущего паттерна "один setup() в conftest.py".
+# 2) `_active_services_ctx` - context-local override, ставится
+#    `override_active(...)`. Изолирован per-context (тред/asyncio task), не
+#    мешает другим контекстам. ContextVar-ы НЕ наследуются дочерними тредами
+#    автоматически: для проброса используйте `contextvars.copy_context()`.
+_default_services: type[SeleniumServices] | None = None
+_active_services_ctx: contextvars.ContextVar[type[SeleniumServices] | None] = (
+    contextvars.ContextVar("_active_services_ctx", default=None)
+)
+
+
+def _resolve_active() -> type[SeleniumServices] | None:
+    """ContextVar override → process-wide default → None."""
+    return _active_services_ctx.get() or _default_services
 
 
 @contextmanager
@@ -175,9 +189,31 @@ class SeleniumServices(containers.DeclarativeContainer):
         with _cwd(config_dir):
             cls.config()
 
-        global _active_services
-        _active_services = cls
+        global _default_services
+        _default_services = cls
         set_logger_resolver(lambda: cls.logger())
+
+    @classmethod
+    @contextmanager
+    def override_active(cls) -> Iterator[None]:
+        """Временно сделать `cls` активным контейнером в текущем контексте.
+
+        Изолировано per-context (тред/asyncio task) через ContextVar - не
+        мешает default'у, выставленному `setup()`, и не виден другим
+        контекстам. Дочерние треды НЕ наследуют override автоматически:
+        пробрасывайте через `contextvars.copy_context().run(...)`.
+
+        ```python
+        with ProjectServices.override_active():
+            run_scenario()  # `get_service` идет в ProjectServices
+        # снаружи - снова default из setup()
+        ```
+        """
+        token = _active_services_ctx.set(cls)
+        try:
+            yield
+        finally:
+            _active_services_ctx.reset(token)
 
     @classmethod
     def get_service(cls, service_type: type[T]) -> T:
@@ -191,7 +227,7 @@ class SeleniumServices(containers.DeclarativeContainer):
         browser = SeleniumServices.get_service(BrowserService)
         ```
         """
-        active = _active_services if _active_services is not None else cls
+        active = _resolve_active() or cls
         for provider in active.providers.values():
             produces = getattr(provider, "provides", None)
             if produces is service_type or (
