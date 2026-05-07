@@ -36,6 +36,16 @@ class OSUtils:
         return sys.platform == "linux"
 
     @classmethod
-    def is_browser_supported_on_current_os(cls, browser: BrowserType) -> bool:
-        """Проверить, поддерживается ли браузер в текущей ОС."""
-        return sys.platform in cls._BROWSER_OS_SUPPORT[browser]
+    def is_browser_supported_on_current_os(
+        cls, browser: BrowserType, platform: str | None = None,
+    ) -> bool:
+        """Проверить, поддерживается ли браузер на ОС.
+
+        `platform` - явное значение в духе `sys.platform` (`"linux"`,
+        `"darwin"`, `"win32"`). По умолчанию `sys.platform`. Параметр
+        введен для тред-безопасности тестов: мутировать `sys.platform`
+        через `monkeypatch.setattr` нельзя - модуль `sys` шарится между
+        тредами.
+        """
+        target = platform if platform is not None else sys.platform
+        return target in cls._BROWSER_OS_SUPPORT[browser]
