@@ -33,6 +33,11 @@ classifiers = [
 dependencies = [
     "tquality-py-core>=0.1.5",
     "selenium>=4.25",
+    # DI-контейнер `SeleniumServices` строится на DeclarativeContainer
+    # из dependency-injector. Тянется и через tquality-py-core, но
+    # прописываем явно - чтобы upstream ядро могло сменить DI-движок,
+    # не сломав нам резолв провайдеров.
+    "dependency-injector>=4.49",
     "undetected-chromedriver>=3.5",
     # Python 3.12 удалил distutils из stdlib, а undetected-chromedriver
     # импортирует distutils.version.LooseVersion. setuptools >= 60 возвращает
@@ -46,6 +51,8 @@ dependencies = [
     "imageio>=2.34",
     "imageio-ffmpeg>=0.5",
     "numpy>=1.26",
+    "pytest-xdist>=3.8.0",
+    "pytest>=9.0.3",
 ]
 
 [project.urls]

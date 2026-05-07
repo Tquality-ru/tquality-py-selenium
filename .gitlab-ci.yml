@@ -38,7 +38,7 @@ mypy:
 tests:linux:
   stage: check
   script:
-    - uv run pytest -v -m "not macos" --junitxml=report.xml
+    - uv run pytest -v -n auto -m "not macos" --junitxml=report.xml
   artifacts:
     when: always
     reports:
@@ -62,7 +62,7 @@ tests:macos-browsers-healthcheck:
     - uv sync
   cache: []
   script:
-    - uv run pytest -v -m "macos" --junitxml=report.xml
+    - uv run pytest -v -n auto -m "macos" --junitxml=report.xml
   artifacts:
     when: always
     reports:
@@ -113,7 +113,7 @@ tests:linux-browsers-healthcheck:
     - pip install --quiet uv
     - uv sync
   script:
-    - uv run pytest -v -m "linux" --junitxml=report.xml
+    - uv run pytest -v -n auto -m "linux" --junitxml=report.xml
   artifacts:
     when: always
     reports:
@@ -151,7 +151,7 @@ tests:windows-browsers-healthcheck:
     - uv sync
   cache: []
   script:
-    - uv run pytest -v -m "windows" --junitxml=report.xml
+    - uv run pytest -v -n auto -m "windows" --junitxml=report.xml
   artifacts:
     when: always
     reports:
