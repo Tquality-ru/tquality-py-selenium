@@ -118,6 +118,57 @@ uv run tquality-selenium-config init
 uv build
 ```
 
+## CI/CD
+
+### На каждом MR и на master
+
+- **`mypy`** - строгий режим проверки типов.
+- **`tests:linux`** - юнит-тесты pytest без настоящих браузеров
+  (default uv+python image, фильтр `-m "not macos"`).
+- **`tests:linux-browsers-healthcheck`** - chrome, firefox, edge,
+  undetected-chrome на linux-runner'е. Использует образ
+  `selenium/standalone-all-browsers:latest` с запечёнными браузерами
+  и драйверами. `allow_failure: true`.
+- **`tests:macos-browsers-healthcheck`** - все 5 браузеров (chrome,
+  firefox, edge, safari, undetected-chrome) на macos-runner'е.
+  `allow_failure: true`.
+- **`tests:windows-browsers-healthcheck`** - chrome, firefox, edge,
+  undetected-chrome на windows-runner'е. `allow_failure: true`.
+
+`allow_failure: true` на browsers-healthcheck значит, что временная
+недоступность runner'а не валит весь pipeline.
+
+### Windows-runner
+
+Установить gitlab-runner под реальным локальным пользователем (не
+`LocalSystem`) - headless Edge требует desktop-сессию, а сервис под
+`LocalSystem` запускается в Session 0 и Edge падает с
+`DevToolsActivePort file doesn't exist`. Установка через `services.msc`
+→ gitlab-runner → Properties → Log On → "This account".
+
+Включить long-path support для глубоких build-путей uv:
+
+```powershell
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+    -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+git config --system core.longpaths true
+Restart-Service gitlab-runner
+```
+
+### macOS-runner
+
+При зависании Selenium Manager / Chrome `--version` (симптом - тесты
+упираются в `pytest-timeout`/2h, sample-стек показывает `_dyld_start`
+или `poll()` без прогресса) обычно помогает рестарт code-signing
+демонов:
+
+```bash
+sudo killall amfid syspolicyd
+```
+
+Daemons стартуют заново, dyld перестаёт зависать на signature-
+верификации, Chrome `--version` отрабатывает за <1s.
+
 ## Релиз
 
 Версия пакета берется из последнего git-тега вида `vX.Y.Z` через

@@ -51,17 +51,11 @@
 pip install tquality-py-selenium
 ```
 
-или с использованием [uv](https://docs.astral.sh/uv/):
-
-```bash
-uv add tquality-py-selenium
-```
-
-В `pyproject.toml` потребителя:
+Или в `pyproject.toml`:
 
 ```toml
 dependencies = [
-    "tquality-py-selenium>=0.1.4",
+    "tquality-py-selenium>=0.1.5",
 ]
 ```
 
@@ -71,17 +65,13 @@ dependencies = [
 ещё не вышедшего в релиз), пакет также доступен из публичного
 GitHub-зеркала по тегу:
 
-```bash
-uv pip install "tquality-py-selenium @ git+https://github.com/Tquality-ru/tquality-py-selenium.git@v0.1.4"
-```
-
-В этом случае hatch у потребителя требует явного разрешения
-`direct-references`:
-
 ```toml
-[tool.hatch.metadata]
-allow-direct-references = true
+dependencies = [
+    "tquality-py-selenium @ git+https://github.com/Tquality-ru/tquality-py-selenium.git@v0.1.5",
+]
 ```
+
+Прямые git-ссылки требуют `[tool.hatch.metadata] allow-direct-references = true` у потребителя.
 
 ## Быстрый старт
 
@@ -257,31 +247,6 @@ BiDi → CDP → классический `get_screenshot_as_png` (с преду
 
 См. [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## CI/CD
+## История версий
 
-GitLab CI на каждом MR и на master:
-
-- **`mypy`** - строгий режим.
-- **`tests:linux`** - pytest без настоящих браузеров.
-- **`tests:linux-browsers-healthcheck`** - chrome, firefox, edge,
-  undetected-chrome на linux-runner'е (использует образ
-  `selenium/standalone-all-browsers` с запечёнными браузерами
-  и драйверами).
-- **`tests:macos-browsers-healthcheck`** - все 5 браузеров (chrome, firefox,
-  edge, safari, undetected-chrome) на macos-runner'е.
-- **`tests:windows-browsers-healthcheck`** - chrome, firefox, edge,
-  undetected-chrome на windows-runner'е.
-
-На теге git `vX.Y.Z`:
-
-- **`publish-pypi`** - сборка (версия из тега через `hatch-vcs`) и
-  загрузка пакета в публичный
-  [PyPI](https://pypi.org/project/tquality-py-selenium/). Требует
-  переменную `PYPI_TOKEN` в настройках CI/CD (protected, masked).
-- **`publish`** - дублирующая публикация в GitLab Package Registry
-  (внутреннее зеркало).
-- **`mirror-to-github`** - master и сам тег уходят в
-  https://github.com/Tquality-ru/tquality-py-selenium (ветки `feature/*`
-  на зеркало не копируются).
-
-История версий - в [CHANGELOG.md](CHANGELOG.md).
+См. [CHANGELOG.md](CHANGELOG.md).

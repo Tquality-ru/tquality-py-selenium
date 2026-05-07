@@ -3,6 +3,79 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
+## [0.1.6] - 2026-05-07
+
+### Добавлено
+
+- `ElementFactory.elements(element_cls, by, name_prefix="")` -
+  лениво-резолвимая коллекция типизированных элементов
+  (`LazyElements[E]` в `tquality_selenium.services.lazy_elements`,
+  наследник `Sequence[E]`). Длина и элементы вычисляются по обращению,
+  что позволяет объявлять коллекцию в `__init__` page-object'а до
+  загрузки страницы. Каждый элемент получает имя
+  `f"{name_prefix} #{i+1}"` (1-based; пустой префикс заменяется именем
+  класса). В рамках одной итерации (`for el in coll`,
+  `[... for el in coll]`, `to_list()`, `coll[a:b]`) `find_elements`
+  вызывается один раз и элементы привязываются к этому snapshot'у -
+  это срезает `O(N)` лишних походов в DOM при действиях в цикле.
+  Между итерациями кэш не переиспользуется. Индексный доступ `coll[i]`
+  всегда live-резолв (берёт N-й узел на момент действия). Метод
+  `to_list() -> list[E]` отдаёт полностью резолвленный список с тем же
+  кэшированием, что и итерация.
+- `SeleniumServices.override_active()` - classmethod-context manager
+  для per-context override активного композиционного корня. Реализован
+  через `contextvars.ContextVar`, изолирован между тредами и
+  asyncio-tasks, не мешает process-wide default'у, выставленному
+  `setup()`. Дочерние треды НЕ наследуют override автоматически -
+  пробрасывайте через `contextvars.copy_context().run(...)` при
+  необходимости.
+- Параметр `platform: str | None = None` в
+  `OSUtils.is_browser_supported_on_current_os` - явное значение в
+  духе `sys.platform` (по умолчанию читается `sys.platform`). Введён
+  для тред-безопасности тестов: модуль `sys` шарится между тредами,
+  поэтому `monkeypatch.setattr("sys.platform", ...)` не годится.
+- `ElementWaiter.until(condition, by, name="", timeout=None, message="")` -
+  ожидание произвольного `expected_conditions`-совместимого условия с
+  человекочитаемым сообщением (имя/локатор элемента и хвост `message`
+  включаются в текст ожидания). Дополняет существующие
+  `until_visible/clickable/present/invisible/not_present`: например,
+  `EC.text_to_be_present_in_element(by, "Готово")` теперь можно
+  передать через единый API, не дублируя `Waiter.until` напрямую.
+- `ElementJsActions.get_computed_style(style_property: str | StyleProperty) -> str`
+  и `get_computed_styles() -> dict[str, str]` - чтение
+  `window.getComputedStyle(...)` через JS. Первая берёт одно свойство
+  по имени (или enum-значению), вторая - все computed-свойства одним
+  JS-запросом (выгоднее, чем `get_computed_style` в цикле).
+- `StyleProperty` (StrEnum) в `tquality_selenium.services.style_property` -
+  имена часто запрашиваемых CSS-свойств для удобного автокомплита
+  (`DISPLAY`, `OPACITY`, `BACKGROUND_COLOR`, `Z_INDEX`, ...). Передача
+  произвольной строки тоже работает - enum опционален.
+- `tests/test_container.py` - 13 тестов на DI-контейнер: резолв по
+  типу/по супер-классу, расширение и override в подклассах, изоляция
+  `override_active` между тредами через `copy_context`, propagation
+  через `BaseElement` и `LazyElements`, subprocess-проверки
+  process-wide default'а от `setup()`.
+
+### Изменено
+
+- **Внутреннее.** Активный композиционный корень теперь хранится в
+  двух уровнях: `_default_services` (process-wide, выставляется
+  `setup()`) и `_active_services_ctx: ContextVar` (per-context,
+  выставляется `override_active()`). Старая module-level переменная
+  `_active_services` заменена. Внешний API без изменений: существующий
+  паттерн `ProjectServices.setup()` в `conftest.py` продолжает
+  работать как раньше и виден из всех тредов.
+- CI: тестовые job'ы (`tests:linux`, `tests:macos-browsers-healthcheck`,
+  `tests:linux-browsers-healthcheck`, `tests:windows-browsers-healthcheck`)
+  используют `pytest -n auto` для параллелизма по процессам.
+- Тесты приведены к thread-safe виду: убрана мутация `sys.platform`
+  через `monkeypatch` (используется новый параметр `platform=`),
+  env-переменные `TEST_*` устанавливаются только в подпроцессе,
+  subprocess-тесты переехали с `pytester.runpytest_subprocess` на
+  прямой `subprocess.run([sys.executable, ...], cwd=tmp_path, ...)`
+  с явным `cwd=` (pytester полагается на process-global
+  `monkeypatch.chdir`, что ломает `pytest-threadpool`-параллелизм).
+
 ## [0.1.5] - 2026-05-05
 
 **Первая публикация в публичный [PyPI](https://pypi.org/project/tquality-py-selenium/).**

@@ -51,37 +51,27 @@ This is the recommended installation path for all consumers:
 pip install tquality-py-selenium
 ```
 
-or with [uv](https://docs.astral.sh/uv/):
-
-```bash
-uv add tquality-py-selenium
-```
-
-In the consumer's `pyproject.toml`:
+Or in `pyproject.toml`:
 
 ```toml
 dependencies = [
-    "tquality-py-selenium>=0.1.4",
+    "tquality-py-selenium>=0.1.5",
 ]
 ```
 
 ### Alternative: install from the GitHub mirror
 
-For a source build (for example, to verify a commit that has not yet
-been released), the package is also available from the public GitHub
-mirror by tag:
-
-```bash
-uv pip install "tquality-py-selenium @ git+https://github.com/Tquality-ru/tquality-py-selenium.git@v0.1.4"
-```
-
-In that case hatch on the consumer side requires explicit opt-in to
-`direct-references`:
+For a source build (e.g., to verify a commit that has not yet been
+released), the package is also available by git tag from the public
+GitHub mirror:
 
 ```toml
-[tool.hatch.metadata]
-allow-direct-references = true
+dependencies = [
+    "tquality-py-selenium @ git+https://github.com/Tquality-ru/tquality-py-selenium.git@v0.1.5",
+]
 ```
+
+Direct git references require `[tool.hatch.metadata] allow-direct-references = true` on the consumer's side.
 
 ## Quick start
 
@@ -257,31 +247,6 @@ warning on fallback).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## CI/CD
+## Version history
 
-GitLab CI runs on every MR and on master:
-
-- **`mypy`** — strict mode.
-- **`tests:linux`** — pytest without real browsers.
-- **`tests:linux-browsers-healthcheck`** — chrome, firefox, edge,
-  undetected-chrome on a Linux runner (uses the
-  `selenium/standalone-all-browsers` image which bakes in the browsers
-  and drivers).
-- **`tests:macos-browsers-healthcheck`** — all 5 browsers (chrome, firefox,
-  edge, safari, undetected-chrome) on a macOS runner.
-- **`tests:windows-browsers-healthcheck`** — chrome, firefox, edge,
-  undetected-chrome on a Windows runner.
-
-On a git tag `vX.Y.Z`:
-
-- **`publish-pypi`** — build (version derived from the tag via
-  `hatch-vcs`) and upload to public
-  [PyPI](https://pypi.org/project/tquality-py-selenium/). Requires the
-  `PYPI_TOKEN` variable in CI/CD settings (protected, masked).
-- **`publish`** — duplicate publication to the GitLab Package Registry
-  (internal mirror).
-- **`mirror-to-github`** — master and the tag are mirrored to
-  https://github.com/Tquality-ru/tquality-py-selenium (`feature/*`
-  branches are not copied to the mirror).
-
-Version history lives in [CHANGELOG.md](CHANGELOG.md).
+See [CHANGELOG.md](CHANGELOG.md).
