@@ -13,6 +13,8 @@ from typing import Any, Callable, Iterator
 
 from selenium.webdriver.remote.webelement import WebElement
 
+from tquality_selenium.services.style_property import StyleProperty
+
 
 class PseudoElement(enum.Enum):
     BEFORE = "::before"
@@ -113,6 +115,47 @@ class ElementJsActions:
             el.dispatchEvent(new Event('change', {bubbles: true}));
             """
             self._driver.execute_script(script, element, value)
+
+    def get_computed_style(
+        self, style_property: str | StyleProperty,
+    ) -> str:
+        """Вернуть computed-style значение указанного CSS-свойства.
+
+        Эквивалент `window.getComputedStyle(el).getPropertyValue(name)`.
+        Для несуществующего свойства браузер возвращает пустую строку.
+        """
+        name = str(style_property)
+        self._log.info("JS get computed style: %s", name)
+        element = self._find()
+        # language=js
+        script = (
+            "return window.getComputedStyle(arguments[0])"
+            ".getPropertyValue(arguments[1]);"
+        )
+        result: Any = self._driver.execute_script(script, element, name)
+        return str(result) if result is not None else ""
+
+    def get_computed_styles(self) -> dict[str, str]:
+        """Вернуть все computed-style свойства элемента как `dict`.
+
+        Один JS-запрос вместо N - выгоднее `get_computed_style` в цикле,
+        когда нужно проверить много свойств одновременно (например, для
+        snapshot-сравнений).
+        """
+        self._log.info("JS get computed styles (all)")
+        element = self._find()
+        # language=js
+        script = """
+        var s = window.getComputedStyle(arguments[0]);
+        var out = {};
+        for (var i = 0; i < s.length; i++) {
+            var name = s[i];
+            out[name] = s.getPropertyValue(name);
+        }
+        return out;
+        """
+        result: Any = self._driver.execute_script(script, element)
+        return {str(k): str(v) for k, v in result.items()}
 
     def blur(self) -> None:
         self._log.info("JS blur")
