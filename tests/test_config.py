@@ -1,12 +1,40 @@
-"""Тесты для SeleniumConfig."""
+"""Тесты для SeleniumConfig.
+
+Тред-безопасность: тесты, проверяющие чтение env-переменных, выполняются
+в подпроцессе - переменные `TEST_*` устанавливаются только в дочернем
+процессе и не отравляют конкурентные `SeleniumConfig()` вызовы основного
+тред-пула.
+"""
 from __future__ import annotations
 
+import subprocess
+import sys
+import textwrap
 from pathlib import Path
 
 import pytest
 
 from tquality_selenium import BrowserType, SeleniumConfig
 from tquality_selenium.config import BrowserConfig, ScreencastConfig
+
+
+def _assert_subprocess_ok(tmp_path: Path, body: str) -> None:
+    """Запустить `body` в подпроцессе с cwd=tmp_path; assert на returncode=0."""
+    script = tmp_path / "_assert.py"
+    script.write_text(body, encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise AssertionError(
+            f"Subprocess returned {result.returncode}\n"
+            f"stdout:\n{result.stdout}\n"
+            f"stderr:\n{result.stderr}",
+        )
 
 
 def test_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -63,11 +91,19 @@ def test_all_browser_blocks_live_side_by_side(
     assert cfg2.firefox.window_width == 1024
 
 
-def test_browser_from_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("TEST_BROWSER", "firefox")
-    cfg = SeleniumConfig()
-    assert cfg.browser is BrowserType.FIREFOX
+def test_browser_from_env(tmp_path: Path) -> None:
+    _assert_subprocess_ok(tmp_path, textwrap.dedent("""
+        import os
+        # Очищаем ambient TEST_* (на случай родительского окружения)
+        # и ставим только нужное - до импорта tquality_selenium.
+        for k in [k for k in os.environ if k.startswith("TEST_")]:
+            del os.environ[k]
+        os.environ["TEST_BROWSER"] = "firefox"
+
+        from tquality_selenium import BrowserType, SeleniumConfig
+        cfg = SeleniumConfig()
+        assert cfg.browser is BrowserType.FIREFOX, cfg.browser
+    """))
 
 
 def test_attach_page_source_on_failure_default(
@@ -78,10 +114,14 @@ def test_attach_page_source_on_failure_default(
     assert cfg.attach_page_source_on_failure is True
 
 
-def test_attach_page_source_on_failure_from_env(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("TEST_ATTACH_PAGE_SOURCE_ON_FAILURE", "false")
-    cfg = SeleniumConfig()
-    assert cfg.attach_page_source_on_failure is False
+def test_attach_page_source_on_failure_from_env(tmp_path: Path) -> None:
+    _assert_subprocess_ok(tmp_path, textwrap.dedent("""
+        import os
+        for k in [k for k in os.environ if k.startswith("TEST_")]:
+            del os.environ[k]
+        os.environ["TEST_ATTACH_PAGE_SOURCE_ON_FAILURE"] = "false"
+
+        from tquality_selenium import SeleniumConfig
+        cfg = SeleniumConfig()
+        assert cfg.attach_page_source_on_failure is False
+    """))

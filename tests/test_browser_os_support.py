@@ -1,7 +1,12 @@
-"""Тесты проверки поддержки браузера на текущей ОС."""
+"""Тесты проверки поддержки браузера на текущей ОС.
+
+Тред-безопасность: тесты НЕ мутируют `sys.platform` (модуль `sys` шарится
+между тредами). Вместо этого используют явный параметр `platform=` в
+`OSUtils.is_browser_supported_on_current_os`.
+"""
 from __future__ import annotations
 
-from pathlib import Path
+import sys
 
 import pytest
 
@@ -33,29 +38,39 @@ def test_all_browser_types_covered_in_os_map() -> None:
         )
 
 
-def test_safari_only_on_macos(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("sys.platform", "linux")
-    assert OSUtils.is_browser_supported_on_current_os(BrowserType.SAFARI) is False
-    monkeypatch.setattr("sys.platform", "darwin")
-    assert OSUtils.is_browser_supported_on_current_os(BrowserType.SAFARI) is True
+def test_safari_only_on_macos() -> None:
+    assert OSUtils.is_browser_supported_on_current_os(
+        BrowserType.SAFARI, platform="linux",
+    ) is False
+    assert OSUtils.is_browser_supported_on_current_os(
+        BrowserType.SAFARI, platform="win32",
+    ) is False
+    assert OSUtils.is_browser_supported_on_current_os(
+        BrowserType.SAFARI, platform="darwin",
+    ) is True
 
 
-def test_edge_supported_on_all_platforms(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_edge_supported_on_all_platforms() -> None:
     # Microsoft теперь публикует Edge для Linux наравне с macOS/Windows.
     for platform in ("linux", "darwin", "win32"):
-        monkeypatch.setattr("sys.platform", platform)
-        assert OSUtils.is_browser_supported_on_current_os(BrowserType.EDGE) is True
+        assert OSUtils.is_browser_supported_on_current_os(
+            BrowserType.EDGE, platform=platform,
+        ) is True
 
 
-def test_browser_service_raises_on_unsupported_os(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
-) -> None:
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("sys.platform", "linux")
+def test_browser_service_raises_on_unsupported_os() -> None:
+    """BrowserService падает на не-macOS, если запросили Safari.
+
+    Используем естественную реальность раннера: на Linux/Windows Safari
+    действительно не поддерживается, не нужно подменять `sys.platform`.
+    На macOS тест неприменим (Safari там валиден) - skip.
+    """
+    if sys.platform == "darwin":
+        pytest.skip("Safari поддерживается на macOS; нечего проверять")
+
     cfg = SeleniumConfig(browser=BrowserType.SAFARI)
-
     with pytest.raises(BrowserNotSupportedError) as exc_info:
         BrowserService(cfg)
 
     assert "safari" in str(exc_info.value).lower()
-    assert "linux" in str(exc_info.value)
+    assert sys.platform in str(exc_info.value)
