@@ -30,7 +30,9 @@ from tquality_selenium.services import (
     ElementJsActions,
     ElementWaiter,
     JsActions,
+    LazyElements,
     PseudoElement,
+    StyleProperty,
     Waiter,
 )
 
@@ -59,11 +61,13 @@ __all__ = [
     "Input",
     "JsActions",
     "Label",
+    "LazyElements",
     "OSUtils",
     "PseudoElement",
     "SeleniumConfig",
     "SeleniumScreencastProvider",
     "SeleniumScreenshotProvider",
     "SeleniumServices",
+    "StyleProperty",
     "Waiter",
 ]
