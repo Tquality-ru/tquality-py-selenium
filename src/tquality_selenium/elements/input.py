@@ -25,13 +25,13 @@ class Input(BaseElement):
         между поиском и вводом DOM перерендерится.
         """
         self._log.info("Type into %s: %s", self._name, text)
-        self._element_waiter.until_visible(self._by, self._name)
+        self.wait.until_visible()
         with self.js_actions.maybe_highlight():
             self._find().send_keys(Keys.CONTROL, "a", Keys.NULL, text)
 
     def append_text(self, text: str) -> None:
         self._log.info("Append to %s: %s", self._name, text)
-        self.wait_until_visible()
+        self.wait.until_visible()
         with self.js_actions.maybe_highlight():
             self._find().send_keys(text)
 

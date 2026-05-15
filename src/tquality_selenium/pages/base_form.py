@@ -1,11 +1,10 @@
 """BaseForm для Selenium - расширенная версия с element_factory, title, url."""
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from tquality_selenium.elements.base_element import BaseElement
-    from tquality_selenium.services.element_factory import ElementFactory
+from typing import Any
+from tquality_selenium.container import SeleniumServices
+from tquality_selenium.elements.base_element import BaseElement
+from tquality_selenium.services.element_factory import ElementFactory
 
 
 class BaseForm:
@@ -27,11 +26,7 @@ class BaseForm:
 
     @property
     def element_factory(self) -> ElementFactory:
-        from tquality_selenium.container import SeleniumServices
-        from tquality_selenium.services.element_factory import (
-            ElementFactory as _EF,
-        )
-        return SeleniumServices.get_service(_EF)
+        return SeleniumServices.get_service(ElementFactory)
 
     @property
     def name(self) -> str:
@@ -56,5 +51,5 @@ class BaseForm:
         return self._unique_element.is_displayed
 
     def wait_for_displayed(self, timeout: float | None = None) -> BaseForm:
-        self._unique_element.wait_for_displayed(timeout)
+        self._unique_element.wait.until_present(timeout)
         return self

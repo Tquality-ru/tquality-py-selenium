@@ -53,6 +53,7 @@ dependencies = [
     "numpy>=1.26",
     "pytest-xdist>=3.8.0",
     "pytest>=9.0.3",
+    "cssselect>=1.4.0",
 ]
 
 [project.urls]

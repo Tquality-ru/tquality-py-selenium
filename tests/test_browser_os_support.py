@@ -15,7 +15,7 @@ from tquality_selenium.browser import (
     BrowserNotSupportedError,
     BrowserService,
 )
-from tquality_selenium.os_utils import OSUtils
+from tquality_selenium.utils.os_utils import OSUtils
 
 
 def test_chrome_supported_everywhere() -> None:

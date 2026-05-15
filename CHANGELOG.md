@@ -3,6 +3,82 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
+## [0.1.7] - 2026-05-15
+
+### Добавлено
+
+- `BaseElement.wait` - per-element `ElementWaiter[Self]`. Все ожидания
+  возвращают сам элемент - удобно чейнить:
+  `button.wait.until_clickable().click()`. API:
+  `wait.until(condition, timeout, message)`,
+  `wait.until_visible/clickable/invisible/present/not_present(timeout)`,
+  `wait.for_computed_style(prop, expected, timeout)`. Кастомное условие
+  получает на вход сам элемент, а не `WebDriver` - доступны
+  `is_displayed`, `js_actions`, `text`, `get_attribute` и т.д.
+- `BaseElement.by` / `BaseElement.name` - read-only-доступ к локатору и
+  имени элемента (раньше было только через `_by` / `_name`).
+- `By.to_xpath() -> str` - конвертация любого `By` в xpath. Для XPATH
+  значение нормализуется через `LocatorUtils.normalize_xpath`. Для
+  `ID/NAME/LINK_TEXT/PARTIAL_LINK_TEXT/CLASS_NAME` значения квотируются
+  через `LocatorUtils.xpath_literal` - значения с `'` / `"` (например,
+  `By.id("don't")`) больше не ломают результирующий XPath.
+- `LocatorUtils` (`tquality_selenium.utils.locator_utils`) - stateless-
+  хелперы для xpath:
+  - `normalize_xpath(value)` - `./foo` → `/foo`, `.//foo` → `//foo`,
+    голый `foo` → `/foo`, абсолютные (`/foo`, `//foo`) без изменений.
+    `.` → `""` (join-нейтральный self - standalone не используется).
+  - `xpath_literal(value)` - безопасное квотирование XPath-литерала
+    (нет `'` → `'…'`; иначе нет `"` → `"…"`; иначе - `concat('a', "'", 'b', …)`).
+  - `join_xpath(*bys: By) -> By` - склеивает несколько `By` в один XPATH-
+    локатор через `to_xpath()` каждого; используется для дочерних
+    локаторов.
+- `ElementFactory.buttons/checkboxes/labels/inputs(by, name_prefix="")` -
+  типизированные обёртки над `elements()` для соответствующих классов.
+- `ElementFactory.element[E](element_cls, by, name="")` - генерик-фабрика
+  одиночного элемента (раньше было захардкожено `BaseElement`).
+- `ElementFactory.get_child_element/get_child_elements` + per-class
+  обёртки (`get_child_button`, `get_child_buttons`, ...) - дочерние
+  локаторы как `parent.by + child.by` через `LocatorUtils.join_xpath`.
+- Зависимость `cssselect>=1.4.0` (для `By.to_xpath()` от
+  `ByKind.CSS_SELECTOR`).
+
+### Изменено
+
+- **Breaking.** Поле `By` переименовано: `by` → `by_kind`. Позиционная
+  распаковка `*by` для selenium-API не изменилась.
+  Миграция: `By(by=ByKind.ID, value="x")` → `By(by_kind=ByKind.ID, value="x")`,
+  `loc.by` → `loc.by_kind`.
+- **Breaking.** `BaseElement.wait_until_visible/clickable/invisible/`
+  `present/not_present`, `wait_for_displayed`, `wait_until`,
+  `wait_for_computed_style` удалены. Используйте `element.wait.<method>`.
+  Миграция: `el.wait_until_visible(timeout)` → `el.wait.until_visible(timeout)`,
+  `el.wait_until(cond)` → `el.wait.until(cond)`,
+  `el.wait_for_computed_style(...)` → `el.wait.for_computed_style(...)`.
+- **Breaking.** `ElementWaiter` теперь generic-обёртка
+  `ElementWaiter[E: BaseElement]` с конструктором `(waiter, element)`,
+  биндится к конкретному элементу. Из DI-контейнера `SeleniumServices`
+  удалён - доступ через `element.wait`. Старая API-сигнатура методов
+  `(by, name="", timeout=None)` заменена на `(timeout=None)` - by/name
+  берутся из бинда.
+- **Breaking.** Модуль `tquality_selenium.os_utils` переехал в
+  `tquality_selenium.utils.os_utils`. Публичный реэкспорт
+  `from tquality_selenium import OSUtils` без изменений; прямые импорты
+  обновить: `from tquality_selenium.os_utils import OSUtils` →
+  `from tquality_selenium.utils.os_utils import OSUtils`.
+- `BaseElement.dismiss_if_visible` и `click` внутри теперь используют
+  `self.wait.until_invisible/clickable` (без изменений в API).
+- Сообщения ожиданий стали информативнее: для
+  `wait.for_computed_style` включают имя свойства и ожидаемое значение
+  (`"<element> to have computed style display equal to 'block'"`).
+
+### Внутреннее
+
+- Новый пакет `tquality_selenium.utils` содержит `os_utils` и
+  `locator_utils`. `utils/__init__.py` намеренно пустой - чтобы
+  импорт `OSUtils` из `browser.py` не подтягивал `LocatorUtils` и не
+  создавал цикл `utils → elements → base_element → services →
+  element_factory → base_element` на старте.
+
 ## [0.1.6] - 2026-05-07
 
 ### Добавлено

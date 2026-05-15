@@ -259,25 +259,27 @@ tquality-py-selenium/
 │   ├── cli.py                 # CLI: tquality-selenium-config init / schema
 │   ├── config.py              # SeleniumConfig, BrowserType
 │   ├── container.py           # SeleniumServices (composition root, setup())
-│   ├── os_utils.py            # OSUtils: карта поддержки браузеров ОС
 │   ├── page_source_plugin.py  # pytest-плагин: page_source -> allure при падении
 │   ├── schema.py              # генератор JSON-схемы для SeleniumConfig
 │   ├── screencast_provider.py # webm-видеозапись шага (BiDi -> CDP -> screenshot)
 │   ├── screenshot_provider.py # снимок экрана для CRITICAL-шагов
 │   ├── elements/
-│   │   ├── base_element.py    # BaseElement (DI-резолверы, локатор как By)
+│   │   ├── base_element.py    # BaseElement (DI-резолверы, локатор как By, element.wait)
 │   │   ├── button.py
-│   │   ├── by.py              # By NamedTuple + ByKind str-Enum (own типы локаторов)
+│   │   ├── by.py              # By NamedTuple + ByKind str-Enum + By.to_xpath()
 │   │   ├── checkbox.py
 │   │   ├── input.py
 │   │   └── label.py
 │   ├── pages/                 # BaseForm (с element_factory из контейнера)
-│   └── services/
-│       ├── collection_factory.py # фабрика коллекций Pydantic-моделей из DOM
-│       ├── element_factory.py    # фабрика типизированных элементов
-│       ├── element_waiter.py     # explicit waits по локатору
-│       ├── js_actions.py         # JsActions + ElementJsActions
-│       └── waiter.py             # обертка над WebDriverWait
+│   ├── services/
+│   │   ├── collection_factory.py # фабрика коллекций Pydantic-моделей из DOM
+│   │   ├── element_factory.py    # фабрика типизированных элементов + get_child_*
+│   │   ├── element_waiter.py     # ElementWaiter[E]: per-element waits (element.wait)
+│   │   ├── js_actions.py         # JsActions + ElementJsActions
+│   │   └── waiter.py             # обертка над WebDriverWait
+│   └── utils/
+│       ├── locator_utils.py   # LocatorUtils: normalize_xpath, join_xpath
+│       └── os_utils.py        # OSUtils: карта поддержки браузеров ОС
 ├── tests/
 ├── README.md                  # английский (по умолчанию для PyPI)
 ├── README.ru.md               # русский

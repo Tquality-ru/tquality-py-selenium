@@ -27,7 +27,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.safari.options import Options as SafariOptions
 
 from tquality_selenium.config import BrowserType
-from tquality_selenium.os_utils import OSUtils
+from tquality_selenium.utils.os_utils import OSUtils
 
 if TYPE_CHECKING:
     from tquality_selenium.config import SeleniumConfig

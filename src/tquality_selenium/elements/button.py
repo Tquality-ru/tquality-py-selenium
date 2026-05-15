@@ -8,6 +8,6 @@ class Button(BaseElement):
 
     def submit(self) -> None:
         self._log.info("Submit: %s", self._name)
-        self.wait_until_clickable()
+        self.wait.until_clickable()
         with self.js_actions.maybe_highlight():
             self._find().submit()

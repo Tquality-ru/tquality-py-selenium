@@ -21,25 +21,26 @@ from tquality_selenium.elements.checkbox import CheckBox
 from tquality_selenium.elements.input import Input
 from tquality_selenium.elements.label import Label
 from tquality_selenium.services.lazy_elements import LazyElements
+from tquality_selenium.utils.locator_utils import LocatorUtils
 
 
 class ElementFactory:
     """Создает типизированные элементы (Button/Input/CheckBox/Label/BaseElement)."""
 
-    def element(self, by: By, name: str = "") -> BaseElement:
-        return BaseElement(by, name)
+    def element[E: BaseElement](self, element_cls: type[E], by: By, name: str = "") -> E:
+        return element_cls(by, name)
 
     def button(self, by: By, name: str = "") -> Button:
-        return Button(by, name)
+        return self.element(Button, by, name)
 
     def checkbox(self, by: By, name: str = "") -> CheckBox:
-        return CheckBox(by, name)
+        return self.element(CheckBox, by, name)
 
     def label(self, by: By, name: str = "") -> Label:
-        return Label(by, name)
+        return self.element(Label, by, name)
 
     def input(self, by: By, name: str = "") -> Input:
-        return Input(by, name)
+        return self.element(Input, by, name)
 
     def elements[E: BaseElement](
         self,
@@ -54,3 +55,53 @@ class ElementFactory:
         Если `name_prefix` пуст - используется имя класса.
         """
         return LazyElements(element_cls, by, name_prefix)
+
+    def buttons(self, by: By, name_prefix: str = "") -> LazyElements[Button]:
+        return self.elements(Button, by, name_prefix)
+
+    def checkboxes(self, by: By, name_prefix: str = "") -> LazyElements[CheckBox]:
+        return self.elements(CheckBox, by, name_prefix)
+
+    def labels(self, by: By, name_prefix: str = "") -> LazyElements[Label]:
+        return self.elements(Label, by, name_prefix)
+
+    def inputs(self, by: By, name_prefix: str = "") -> LazyElements[Input]:
+        return self.elements(Input, by, name_prefix)
+
+    def get_child_element[E: BaseElement](self,
+                                          element_cls: type[E],
+                                          parent: BaseElement,
+                                          by: By,
+                                          name: str = "") -> E:
+        return element_cls(LocatorUtils.join_xpath(parent.by, by), name)
+
+    def get_child_button(self, parent: BaseElement, by: By, name: str = "") -> Button:
+        return self.get_child_element(Button, parent, by, name)
+
+    def get_child_checkbox(self, parent: BaseElement, by: By, name: str = "") -> CheckBox:
+        return self.get_child_element(CheckBox, parent, by, name)
+
+    def get_child_label(self, parent: BaseElement, by: By, name: str = "") -> Label:
+        return self.get_child_element(Label, parent, by, name)
+
+    def get_child_input(self, parent: BaseElement, by: By, name: str = "") -> Input:
+        return self.get_child_element(Input, parent, by, name)
+
+    def get_child_elements[E: BaseElement](self,
+                                           element_cls: type[E],
+                                           parent: BaseElement,
+                                           by: By,
+                                           name_prefix: str = "") -> LazyElements[E]:
+        return LazyElements(element_cls, LocatorUtils.join_xpath(parent.by, by), name_prefix)
+
+    def get_child_buttons(self, parent: BaseElement, by: By, name_prefix: str = "") -> LazyElements[Button]:
+        return self.get_child_elements(Button, parent, by, name_prefix)
+
+    def get_child_checkboxes(self, parent: BaseElement, by: By, name_prefix: str = "") -> LazyElements[CheckBox]:
+        return self.get_child_elements(CheckBox, parent, by, name_prefix)
+
+    def get_child_labels(self, parent: BaseElement, by: By, name_prefix: str = "") -> LazyElements[Label]:
+        return self.get_child_elements(Label, parent, by, name_prefix)
+
+    def get_child_inputs(self, parent: BaseElement, by: By, name_prefix: str = "") -> LazyElements[Input]:
+        return self.get_child_elements(Input, parent, by, name_prefix)

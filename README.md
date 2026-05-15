@@ -15,7 +15,9 @@ Selenium integration built on top of [tquality-py-core](https://github.com/Tqual
   browser startup (with an immediate failure on mismatch).
 - **`BaseElement`** and the typed subclasses `Button`, `Input`, `CheckBox`,
   `Label` with a full surface: `click`, `text`, `get_attribute`,
-  `wait_until_*`, `js_actions` (lazily bound to the element).
+  `wait.until_*` (`element.wait` returns a per-element `ElementWaiter` —
+  `button.wait.until_clickable().click()`), `js_actions` (lazily bound
+  to the element).
 - **`BaseForm`** — page base class with `title`, `current_url`,
   `element_factory` (resolved via the composition root).
 - **`SeleniumServices`** — composition root (a `dependency-injector`
@@ -25,8 +27,10 @@ Selenium integration built on top of [tquality-py-core](https://github.com/Tqual
 
 - **`BrowserService`** — `WebDriver` wrapper; parameters are taken from
   `config.active_browser`.
-- **`Waiter`**, **`ElementWaiter`** — explicit waits at the page and
-  element level.
+- **`Waiter`** — explicit waits at the page level. Element-level
+  waits are exposed per-element via `element.wait` (returns a
+  per-element `ElementWaiter[Self]`); chainable methods return the
+  bound element.
 - **`ElementFactory`** — element factory.
 - **`JsActions`** + **`ElementJsActions`** — JavaScript actions on the
   page and on individual elements.

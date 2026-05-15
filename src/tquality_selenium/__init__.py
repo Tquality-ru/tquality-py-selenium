@@ -19,7 +19,8 @@ from tquality_selenium.elements import (
     Input,
     Label,
 )
-from tquality_selenium.os_utils import OSUtils
+from tquality_selenium.utils.locator_utils import LocatorUtils
+from tquality_selenium.utils.os_utils import OSUtils
 from tquality_selenium.pages import BaseForm
 from tquality_selenium.screencast_provider import SeleniumScreencastProvider
 from tquality_selenium.screenshot_provider import SeleniumScreenshotProvider
@@ -28,7 +29,6 @@ from tquality_selenium.services import (
     DomField,
     ElementFactory,
     ElementJsActions,
-    ElementWaiter,
     JsActions,
     LazyElements,
     PseudoElement,
@@ -57,11 +57,11 @@ __all__ = [
     "DomField",
     "ElementFactory",
     "ElementJsActions",
-    "ElementWaiter",
     "Input",
     "JsActions",
     "Label",
     "LazyElements",
+    "LocatorUtils",
     "OSUtils",
     "PseudoElement",
     "SeleniumConfig",

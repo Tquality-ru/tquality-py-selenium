@@ -14,8 +14,11 @@
   `undetected-chrome`. Доступность для текущей ОС проверяется `OSUtils` при
   запуске браузера (с немедленной остановкой при ошибке).
 - **`BaseElement`** и производные `Button`, `Input`, `CheckBox`, `Label`
-  с полным набором методов: `click`, `text`, `get_attribute`, `wait_until_*`,
-  `js_actions` (лениво связывается с элементом).
+  с полным набором методов: `click`, `text`, `get_attribute`,
+  `wait.until_*` (`element.wait` возвращает per-element
+  `ElementWaiter` - можно чейнить:
+  `button.wait.until_clickable().click()`), `js_actions` (лениво
+  связывается с элементом).
 - **`BaseForm`** - базовый класс страницы с `title`, `current_url`,
   `element_factory` (через композиционный корень).
 - **`SeleniumServices`** - композиционный корень (контейнер внедрения зависимостей
@@ -26,8 +29,10 @@
 
 - **`BrowserService`** - обёртка над WebDriver, параметры берутся из
   `config.active_browser`.
-- **`Waiter`**, **`ElementWaiter`** - ожидания на уровне страницы и
-  отдельных элементов.
+- **`Waiter`** - ожидания на уровне страницы. Ожидания на уровне
+  элемента доступны per-element через `element.wait` (возвращает
+  `ElementWaiter[Self]`, привязанный к элементу); чейнятся - каждый
+  метод возвращает сам элемент.
 - **`ElementFactory`** - фабрика элементов.
 - **`JsActions`** + **`ElementJsActions`** - действия через JavaScript
   над страницей и элементами.

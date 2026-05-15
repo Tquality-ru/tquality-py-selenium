@@ -77,7 +77,6 @@ from tquality_selenium.screencast_provider import SeleniumScreencastProvider
 from tquality_selenium.screenshot_provider import SeleniumScreenshotProvider
 from tquality_selenium.services.collection_factory import CollectionFactory
 from tquality_selenium.services.element_factory import ElementFactory
-from tquality_selenium.services.element_waiter import ElementWaiter
 from tquality_selenium.services.js_actions import JsActions
 from tquality_selenium.services.waiter import Waiter
 
@@ -152,9 +151,6 @@ class SeleniumServices(containers.DeclarativeContainer):
     )
     waiter: providers.ContextLocalSingleton[Waiter] = (
         providers.ContextLocalSingleton(Waiter, config=config)
-    )
-    element_waiter: providers.ContextLocalSingleton[ElementWaiter] = (
-        providers.ContextLocalSingleton(ElementWaiter, waiter=waiter)
     )
     element_factory: providers.Singleton[ElementFactory] = (
         providers.Singleton(ElementFactory)

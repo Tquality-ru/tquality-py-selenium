@@ -22,7 +22,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
 
-from tquality_selenium.elements.by import ByKind
+from tquality_selenium.elements.by_kind import ByKind
 
 T = TypeVar("T", bound=BaseModel)
 
