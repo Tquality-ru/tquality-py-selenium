@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from typing import Any
+
+from tquality_selenium.browser import BrowserService
 from tquality_selenium.container import SeleniumServices
 from tquality_selenium.elements.base_element import BaseElement
 from tquality_selenium.services.element_factory import ElementFactory
@@ -20,8 +22,6 @@ class BaseForm:
 
     @property
     def _browser(self) -> Any:
-        from tquality_selenium.browser import BrowserService
-        from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(BrowserService)
 
     @property
