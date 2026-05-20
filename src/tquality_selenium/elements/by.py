@@ -28,15 +28,14 @@ class By(NamedTuple):
     value: str
 
     def to_xpath(self) -> str:
-        # Локально, чтобы не было цикла: `locator_utils` импортирует `By`.
-        from tquality_selenium.utils.locator_utils import LocatorUtils
+        from tquality_core.utils.xpath_utils import XPathUtils
 
-        lit = LocatorUtils.xpath_literal
+        lit = XPathUtils.literal
         match self.by_kind:
             case ByKind.ID:
                 return f"//*[@id={lit(self.value)}]"
             case ByKind.XPATH:
-                return LocatorUtils.normalize_xpath(self.value)
+                return XPathUtils.normalize(self.value)
             case ByKind.LINK_TEXT:
                 return f"//a[text()={lit(self.value)}]"
             case ByKind.PARTIAL_LINK_TEXT:

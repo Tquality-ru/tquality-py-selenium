@@ -3,6 +3,41 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
+## [0.1.8] - 2026-05-20
+
+### Изменено
+
+- **Минимальная версия `tquality-py-core` поднята до `>=0.1.6`** -
+  для использования вынесенных в ядро `XPathUtils`, `OSUtils`,
+  `build_schema_url`, `build_cli` и параметризуемых
+  `generate_schema(..., schema_url=...)` / `write_schema_file(...,
+  schema_url=...)`.
+- **`LocatorUtils.normalize_xpath` / `LocatorUtils.xpath_literal`** -
+  тонкие обёртки над `tquality_core.utils.xpath_utils.XPathUtils.normalize` /
+  `.literal`. Логика идентична, публичный API не изменён.
+- **`OSUtils.is_macos` / `is_windows` / `is_linux`** - переэкспортированы
+  из `tquality_core.utils.os_utils.OSUtils`. Карта `_BROWSER_OS_SUPPORT`
+  и `is_browser_supported_on_current_os` остаются в селениум-пакете
+  (зависят от `BrowserType`).
+- **`tquality_selenium.schema`** - запись схемы и резолв ref-версии
+  делегированы в `tquality_core.schema` через `build_schema_url`,
+  `generate_schema(SeleniumConfig, schema_url=...)`,
+  `write_schema_file(...)`. Публичные `SELENIUM_SCHEMA_URL`,
+  `generate_schema()`, `write_schema_file(path)` сохранены.
+- **`tquality_selenium.cli.main`** - собирается через
+  `tquality_core.cli.build_cli(prog="tquality-selenium-config", ...)`,
+  избавляясь от дубля argparse-плиты. Поведение `init` / `schema`
+  идентично.
+- **`$schema` в `schema/config.schema.json`**: `draft-07` →
+  `draft/2020-12` (синхронно с ядром 0.1.6). Pydantic 2 эмитит
+  2020-12-features, прежний диалект вводил валидаторы в заблуждение.
+  Файл перегенерирован.
+
+### Удалено
+
+- Локальное дублирование `_resolve_ref` и тестов резолва версии
+  схемы - теперь это покрытие живёт в `tquality-py-core`.
+
 ## [0.1.7] - 2026-05-15
 
 ### Добавлено

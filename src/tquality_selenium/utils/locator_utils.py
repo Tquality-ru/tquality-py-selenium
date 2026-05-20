@@ -1,11 +1,14 @@
 """Утилиты для работы с локаторами.
 
-`LocatorUtils` собирает stateless-хелперы для нормализации xpath-строк и
-композиции нескольких `By` в один локатор. Конвертация одного `By` -
-на самом `By.to_xpath()`, который, в свою очередь, использует
-`LocatorUtils.normalize_xpath` для XPATH-стратегии.
+`LocatorUtils` собирает stateless-хелперы вокруг локаторов селениума.
+Сами XPath-строковые трансформации (`normalize`, `literal`) живут в
+`tquality_core.utils.xpath_utils.XPathUtils` - сюда они переэкспортированы
+под историческими именами `normalize_xpath`/`xpath_literal`. Здесь же
+остаётся `join_xpath`, который зависит от селениум-специфичного `By`.
 """
 from __future__ import annotations
+
+from tquality_core.utils.xpath_utils import XPathUtils
 
 from tquality_selenium.elements.by import By
 
@@ -17,38 +20,17 @@ class LocatorUtils:
     def normalize_xpath(value: str) -> str:
         """Делает xpath безопасным для конкатенации с родительским локатором.
 
-        `.` → `""` (self - join-нейтральный, в `parent + .` даёт самого
-        parent'а; selenium-у такой результат standalone не скормишь, но в
-        практике `.` в качестве отдельного локатора и не нужен), `./foo` →
-        `/foo`, `.//foo` → `//foo`, `foo` → `/foo`. Уже абсолютные
-        (`/foo`, `//foo`) - без изменений.
+        Тонкая обёртка над `XPathUtils.normalize` для обратной совместимости.
         """
-        if value == ".":
-            return ""
-        if value.startswith(".//"):
-            return value[1:]
-        if value.startswith("./"):
-            return value[1:]
-        if not value.startswith("/"):
-            return "/" + value
-        return value
+        return XPathUtils.normalize(value)
 
     @staticmethod
     def xpath_literal(value: str) -> str:
-        """Квотит `value` как XPath-литерал, корректно обрабатывая
-        встроенные кавычки.
+        """Квотит `value` как XPath-литерал.
 
-        XPath не имеет escape для кавычек, поэтому:
-        - нет `'` → оборачиваем в `'…'`;
-        - иначе нет `"` → оборачиваем в `"…"`;
-        - иначе бьём по `'` и склеиваем через `concat('a', "'", 'b', ...)`.
+        Тонкая обёртка над `XPathUtils.literal` для обратной совместимости.
         """
-        if "'" not in value:
-            return f"'{value}'"
-        if '"' not in value:
-            return f'"{value}"'
-        parts = (f"'{p}'" for p in value.split("'"))
-        return "concat(" + ", \"'\", ".join(parts) + ")"
+        return XPathUtils.literal(value)
 
     @staticmethod
     def join_xpath(*bys: By) -> By:
