@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+from tquality_core import ElementState, StateSpec
+
 from tquality_selenium.elements.base_element import BaseElement
+from tquality_selenium.elements.by import By
 
 
 class CheckBox(BaseElement):
     """Чекбокс."""
+
+    def __init__(
+        self,
+        by: By,
+        name: str = "",
+        state: StateSpec = ElementState.CLICKABLE,
+    ) -> None:
+        super().__init__(by, name, state=state)
 
     @property
     def is_checked(self) -> bool:

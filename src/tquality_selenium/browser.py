@@ -31,6 +31,7 @@ from tquality_selenium.utils.os_utils import OSUtils
 
 if TYPE_CHECKING:
     from tquality_selenium.config import SeleniumConfig
+    from tquality_selenium.services.context_manager import ContextManager
 
 
 _browser_started: contextvars.ContextVar[bool] = contextvars.ContextVar(
@@ -258,6 +259,19 @@ class BrowserService:
     @property
     def driver(self) -> WebDriver:
         return self._driver
+
+    @property
+    def context(self) -> ContextManager:
+        """Фасад фокуса сессии: окна/табы, фреймы, алерты.
+
+        Шорткат для `SeleniumServices.get_service(ContextManager)`:
+        `browser.context.switch_to_window(handle)`,
+        `with browser.context.frame("name"):`,
+        `browser.context.wait.for_alert(...)`.
+        """
+        from tquality_selenium.container import SeleniumServices
+        from tquality_selenium.services.context_manager import ContextManager
+        return SeleniumServices.get_service(ContextManager)
 
     def open(self, url: str) -> None:
         self._driver.get(url)

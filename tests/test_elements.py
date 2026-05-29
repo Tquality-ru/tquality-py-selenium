@@ -428,10 +428,6 @@ def test_get_computed_styles_returns_dict_str_str() -> None:
 
 def test_lazy_elements_iteration_caches_find_elements_within_one_pass() -> None:
     """Внутри одного цикла - один `find_elements`; элементы из snapshot'а."""
-    from unittest.mock import PropertyMock, patch
-
-    from tquality_selenium.services.lazy_elements import LazyElements
-
     call_count = 0
 
     class CountingBrowser:
@@ -442,22 +438,15 @@ def test_lazy_elements_iteration_caches_find_elements_within_one_pass() -> None:
 
     factory = ElementFactory()
     collection = factory.elements(Button, By.css_selector("button"), "btn")
-    with patch.object(
-        LazyElements, "_browser", new_callable=PropertyMock,
-    ) as browser_prop:
-        browser_prop.return_value = CountingBrowser()
-        # Каждый _find() читает из snapshot'а, не из find_elements.
-        resolved = [b._find() for b in collection]
+    collection._driver_resolver = CountingBrowser
+
+    resolved = [b._find() for b in collection]
     assert resolved == ["w0", "w1", "w2"]
-    assert call_count == 1, f"ожидался 1 вызов find_elements, было {call_count}"
+    assert call_count == 1
 
 
 def test_lazy_elements_for_loop_uses_one_find_elements_call() -> None:
     """Классический `for` (не comprehension) - тоже один find_elements."""
-    from unittest.mock import PropertyMock, patch
-
-    from tquality_selenium.services.lazy_elements import LazyElements
-
     call_count = 0
 
     class CountingBrowser:
@@ -468,25 +457,17 @@ def test_lazy_elements_for_loop_uses_one_find_elements_call() -> None:
 
     factory = ElementFactory()
     collection = factory.elements(Button, By.css_selector("button"), "btn")
+    collection._driver_resolver = CountingBrowser
     resolved: list[Any] = []
-    with patch.object(
-        LazyElements, "_browser", new_callable=PropertyMock,
-    ) as browser_prop:
-        browser_prop.return_value = CountingBrowser()
-        for btn in collection:
-            # Имитация действия над элементом - каждое читает из snapshot'а.
-            resolved.append(btn._find())
+    for btn in collection:
+        resolved.append(btn._find())
 
     assert resolved == ["w0", "w1", "w2"]
-    assert call_count == 1, f"ожидался 1 вызов find_elements, было {call_count}"
+    assert call_count == 1
 
 
 def test_lazy_elements_to_list_uses_one_find_elements_call() -> None:
     """`to_list()` - один find_elements; последующие `_find()` из snapshot'а."""
-    from unittest.mock import PropertyMock, patch
-
-    from tquality_selenium.services.lazy_elements import LazyElements
-
     call_count = 0
 
     class CountingBrowser:
@@ -497,25 +478,17 @@ def test_lazy_elements_to_list_uses_one_find_elements_call() -> None:
 
     factory = ElementFactory()
     collection = factory.elements(Button, By.css_selector("button"), "btn")
-    with patch.object(
-        LazyElements, "_browser", new_callable=PropertyMock,
-    ) as browser_prop:
-        browser_prop.return_value = CountingBrowser()
-        items = collection.to_list()
-        # Резолв всех элементов: snapshot уже снят, новых походов в DOM нет.
-        resolved = [b._find() for b in items]
+    collection._driver_resolver = CountingBrowser
+    items = collection.to_list()
+    resolved = [b._find() for b in items]
 
     assert len(items) == 3
     assert resolved == ["w0", "w1", "w2"]
-    assert call_count == 1, f"ожидался 1 вызов find_elements, было {call_count}"
+    assert call_count == 1
 
 
 def test_lazy_elements_separate_iterations_re_fetch() -> None:
     """Между разными итерациями - свежий `find_elements`."""
-    from unittest.mock import PropertyMock, patch
-
-    from tquality_selenium.services.lazy_elements import LazyElements
-
     call_count = 0
 
     class CountingBrowser:
@@ -526,13 +499,9 @@ def test_lazy_elements_separate_iterations_re_fetch() -> None:
 
     factory = ElementFactory()
     collection = factory.elements(Button, By.css_selector("button"), "btn")
-    with patch.object(
-        LazyElements, "_browser", new_callable=PropertyMock,
-    ) as browser_prop:
-        browser_prop.return_value = CountingBrowser()
-        first = [b._find() for b in collection]
-        second = [b._find() for b in collection]
-    # Каждая итерация получила свой snapshot - значит два вызова.
+    collection._driver_resolver = CountingBrowser
+    first = [b._find() for b in collection]
+    second = [b._find() for b in collection]
     assert call_count == 2
     assert first[0] == "snapshot1_w0"
     assert second[0] == "snapshot2_w0"
@@ -540,10 +509,6 @@ def test_lazy_elements_separate_iterations_re_fetch() -> None:
 
 def test_lazy_elements_single_index_access_stays_live() -> None:
     """`collection[i]` (без snapshot) делает live-резолв при каждом действии."""
-    from unittest.mock import PropertyMock, patch
-
-    from tquality_selenium.services.lazy_elements import LazyElements
-
     call_count = 0
 
     class CountingBrowser:
@@ -554,24 +519,15 @@ def test_lazy_elements_single_index_access_stays_live() -> None:
 
     factory = ElementFactory()
     collection = factory.elements(Button, By.css_selector("button"), "btn")
-    with patch.object(
-        LazyElements, "_browser", new_callable=PropertyMock,
-    ) as browser_prop:
-        browser_prop.return_value = CountingBrowser()
-        item = collection[1]  # индексный доступ - без snapshot'а
-        item._find()
-        item._find()
-    # Один вызов - per-action find_elements: без len() (positive index)
-    # сам __getitem__ не зовет find_elements; зовут только два _find().
+    collection._driver_resolver = CountingBrowser
+    item = collection[1]
+    item._find()
+    item._find()
     assert call_count == 2
 
 
 def test_lazy_elements_to_list_resolves_eagerly() -> None:
     """`to_list` отдает list[E] длиной N с уже именованными элементами."""
-    from unittest.mock import PropertyMock, patch
-
-    from tquality_selenium.services.lazy_elements import LazyElements
-
     sentinels = ["w0", "w1", "w2"]
 
     class FakeBrowser:
@@ -580,11 +536,8 @@ def test_lazy_elements_to_list_resolves_eagerly() -> None:
 
     factory = ElementFactory()
     collection = factory.elements(Button, By.css_selector("button"), "btn")
-    with patch.object(
-        LazyElements, "_browser", new_callable=PropertyMock,
-    ) as browser_prop:
-        browser_prop.return_value = FakeBrowser()
-        result = collection.to_list()
+    collection._driver_resolver = FakeBrowser
+    result = collection.to_list()
 
     assert isinstance(result, list)
     assert len(result) == len(sentinels)
@@ -593,10 +546,6 @@ def test_lazy_elements_to_list_resolves_eagerly() -> None:
 
 
 def test_lazy_elements_indexed_finder_uses_find_elements_at_index() -> None:
-    from unittest.mock import PropertyMock, patch
-
-    from tquality_selenium.services.lazy_elements import LazyElements
-
     sentinels = ["w0", "w1", "w2"]
 
     class FakeBrowser:
@@ -605,69 +554,78 @@ def test_lazy_elements_indexed_finder_uses_find_elements_at_index() -> None:
 
     factory = ElementFactory()
     collection = factory.elements(Button, By.css_selector("button"), "btn")
+    collection._driver_resolver = FakeBrowser
     item = collection[1]
-    with patch.object(
-        LazyElements, "_browser", new_callable=PropertyMock,
-    ) as browser_prop:
-        browser_prop.return_value = FakeBrowser()
-        assert item._find() == "w1"
+    assert item._find() == "w1"
 
 
 # ----------------- element.wait API -----------------
 
 
-from tquality_selenium.services.waiter import Waiter as _Waiter  # noqa: E402
+from tquality_selenium.services.driver_waiter import DriverWaiter as _DriverWaiter  # noqa: E402
 
 
-class _FakeWaiter(_Waiter):
-    """Fake of `Waiter`: records calls, returns the value supplied per-call.
+class _FakeDriverWaiter(_DriverWaiter):
+    """Фейк `DriverWaiter` - не зовёт реальный polling, фиксирует kwargs
+    и возвращает заранее заданное bool-значение. Удобно для проверки,
+    что `ElementWaiter.until_*` правильно собирает condition / message /
+    timeout / poll_interval / raise_on_timeout перед делегированием.
 
-    Наследуется от `Waiter`, чтобы быть type-compatible с
-    `ElementWaiter.__init__(waiter: Waiter, ...)`, но `Waiter.__init__`
-    не вызывает - в фейке не нужны ни `SeleniumConfig`, ни DI.
+    Наследуется от `DriverWaiter`, чтобы быть type-compatible с
+    `ElementWaiter.__init__(driver_waiter: DriverWaiter, ...)`, но
+    `super().__init__` не вызывает - в фейке не нужны ни `Waiter`, ни DI.
     """
 
-    def __init__(self, return_value: Any = None) -> None:
+    def __init__(self, return_value: bool = False) -> None:
         self.calls: list[dict[str, Any]] = []
         self._return_value = return_value
 
     def until(
         self,
         condition: Any,
-        message: str = "",
+        *,
         timeout: float | None = None,
-    ) -> Any:
-        self.calls.append(
-            {"condition": condition, "message": message, "timeout": timeout},
-        )
+        poll_interval: float | None = None,
+        raise_on_timeout: bool | type[BaseException] = False,
+        message: str = "",
+        ignored_exceptions: Any = None,
+    ) -> bool:
+        self.calls.append({
+            "condition": condition,
+            "message": message,
+            "timeout": timeout,
+            "poll_interval": poll_interval,
+            "raise_on_timeout": raise_on_timeout,
+            "ignored_exceptions": ignored_exceptions,
+        })
         return self._return_value
 
 
 def test_element_wait_property_returns_bound_element_waiter() -> None:
-    """`btn.wait` резолвит `Waiter` из DI и биндит сам элемент."""
+    """`btn.wait` резолвит `DriverWaiter` из DI и биндит сам элемент."""
     from unittest.mock import MagicMock, patch
 
     from tquality_selenium.container import SeleniumServices
     from tquality_selenium.services.element_waiter import ElementWaiter as EW
 
     btn = Button(By.id("submit"), "Submit")
-    fake_waiter = MagicMock()
-    with patch.object(SeleniumServices, "get_service", return_value=fake_waiter):
+    fake_dw = MagicMock()
+    with patch.object(SeleniumServices, "get_service", return_value=fake_dw):
         w = btn.wait
 
     assert isinstance(w, EW)
     assert w._element is btn
-    assert w._waiter is fake_waiter
+    assert w._driver_waiter is fake_dw
 
 
-def test_until_visible_delegates_to_waiter_and_returns_element() -> None:
+def test_until_visible_delegates_to_waiter_and_returns_bool() -> None:
     from tquality_selenium.services.element_waiter import ElementWaiter as EW
 
     btn = Button(By.id("submit"), "Submit")
-    fake = _FakeWaiter()
+    fake = _FakeDriverWaiter(return_value=True)
     result = EW(fake, btn).until_visible(timeout=2.5)
 
-    assert result is btn
+    assert result is True
     assert len(fake.calls) == 1
     call = fake.calls[0]
     assert call["timeout"] == 2.5
@@ -675,37 +633,37 @@ def test_until_visible_delegates_to_waiter_and_returns_element() -> None:
     assert "to be visible" in call["message"]
 
 
-def test_until_clickable_delegates_and_returns_element() -> None:
+def test_until_clickable_delegates_and_returns_bool() -> None:
     from tquality_selenium.services.element_waiter import ElementWaiter as EW
 
     btn = Button(By.id("submit"), "Submit")
-    fake = _FakeWaiter()
+    fake = _FakeDriverWaiter(return_value=False)
     result = EW(fake, btn).until_clickable()
 
-    assert result is btn
+    assert result is False
     assert "to be clickable" in fake.calls[0]["message"]
 
 
-def test_until_invisible_delegates_and_returns_element() -> None:
+def test_until_invisible_delegates_and_returns_bool() -> None:
     from tquality_selenium.services.element_waiter import ElementWaiter as EW
 
     el = BaseElement(By.css_selector(".banner"), "Cookie banner")
-    fake = _FakeWaiter(return_value=True)
+    fake = _FakeDriverWaiter(return_value=True)
     result = EW(fake, el).until_invisible(timeout=1.0)
 
-    assert result is el
+    assert result is True
     assert "to be invisible" in fake.calls[0]["message"]
     assert "Cookie banner" in fake.calls[0]["message"]
 
 
-def test_until_present_delegates_and_returns_element() -> None:
+def test_until_present_delegates_and_returns_bool() -> None:
     from tquality_selenium.services.element_waiter import ElementWaiter as EW
 
     el = BaseElement(By.id("x"), "X")
-    fake = _FakeWaiter()
+    fake = _FakeDriverWaiter(return_value=True)
     result = EW(fake, el).until_present()
 
-    assert result is el
+    assert result is True
     assert "to be present" in fake.calls[0]["message"]
 
 
@@ -716,10 +674,10 @@ def test_until_not_present_invokes_find_elements_in_predicate() -> None:
     from tquality_selenium.services.element_waiter import ElementWaiter as EW
 
     el = BaseElement(By.css_selector(".gone"), "Gone")
-    fake = _FakeWaiter(return_value=True)
+    fake = _FakeDriverWaiter(return_value=True)
     result = EW(fake, el).until_not_present()
 
-    assert result is el
+    assert result is True
     assert "to be not present" in fake.calls[0]["message"]
 
     captured_predicate = fake.calls[0]["condition"]
@@ -734,7 +692,7 @@ def test_wait_until_passes_element_into_user_condition() -> None:
     from tquality_selenium.services.element_waiter import ElementWaiter as EW
 
     el = BaseElement(By.id("x"), "X")
-    fake = _FakeWaiter()
+    fake = _FakeDriverWaiter(return_value=True)
 
     captured: list[Any] = []
 
@@ -744,13 +702,11 @@ def test_wait_until_passes_element_into_user_condition() -> None:
 
     result = EW(fake, el).until(user_cond, timeout=0.5, message="be ready")
 
-    assert result is el
+    assert result is True
     assert len(fake.calls) == 1
     assert fake.calls[0]["timeout"] == 0.5
     assert "be ready" in fake.calls[0]["message"]
-    assert "X" in fake.calls[0]["message"]
 
-    # Wrapper-кондишн дёргает user_cond с элементом, игнорируя driver.
     fake.calls[0]["condition"](object())
     assert captured == [el]
 
@@ -759,7 +715,7 @@ def test_wait_until_default_message_when_omitted() -> None:
     from tquality_selenium.services.element_waiter import ElementWaiter as EW
 
     el = BaseElement(By.id("x"), "X")
-    fake = _FakeWaiter()
+    fake = _FakeDriverWaiter()
     EW(fake, el).until(lambda _e: True)
 
     assert "meet custom condition" in fake.calls[0]["message"]
@@ -771,7 +727,7 @@ def test_wait_for_computed_style_builds_message_and_uses_js_actions() -> None:
     from tquality_selenium.services.element_waiter import ElementWaiter as EW
 
     btn = Button(By.id("submit"), "Submit")
-    fake = _FakeWaiter()
+    fake = _FakeDriverWaiter(return_value=True)
 
     ja = MagicMock()
     ja.get_computed_style.return_value = "block"
@@ -780,25 +736,25 @@ def test_wait_for_computed_style_builds_message_and_uses_js_actions() -> None:
         result = EW(fake, btn).for_computed_style(
             StyleProperty.DISPLAY, "block", timeout=3.0,
         )
-        # Triggering the captured wait condition - проверяем, что предикат
-        # действительно дёргает get_computed_style и сравнивает с expected.
         assert fake.calls[0]["condition"](object()) is True
 
-    assert result is btn
+    assert result is True
     assert len(fake.calls) == 1
     msg = fake.calls[0]["message"]
-    assert "have computed style display equal to 'block'" in msg
+    assert "display" in msg and "'block'" in msg
     assert fake.calls[0]["timeout"] == 3.0
     ja.get_computed_style.assert_called_with(StyleProperty.DISPLAY)
 
 
-def test_wait_chain_returns_subclass_for_subclass_elements() -> None:
-    """Generics: `Button.wait.until_visible()` тип Button, не BaseElement."""
+def test_raise_on_timeout_kwarg_propagates() -> None:
+    """ElementWaiter передаёт raise_on_timeout / poll_interval в DriverWaiter."""
     from tquality_selenium.services.element_waiter import ElementWaiter as EW
 
     btn = Button(By.id("submit"), "Submit")
-    fake = _FakeWaiter()
-    result = EW(fake, btn).until_visible()
-    # Runtime-проверка: тот же объект, того же класса.
-    assert result is btn
-    assert isinstance(result, Button)
+    fake = _FakeDriverWaiter()
+    EW(fake, btn).until_visible(
+        timeout=1.0, poll_interval=0.05, raise_on_timeout=True,
+    )
+    call = fake.calls[0]
+    assert call["poll_interval"] == 0.05
+    assert call["raise_on_timeout"] is True

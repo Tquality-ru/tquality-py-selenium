@@ -3,15 +3,22 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
-## [0.1.8] - 2026-05-20
+## [0.1.8] - 2026-05-29
 
 ### Изменено
 
-- **Минимальная версия `tquality-py-core` поднята до `>=0.1.6`** -
+- **Минимальная версия `tquality-py-core` поднята до `>=0.1.9`** -
   для использования вынесенных в ядро `XPathUtils`, `OSUtils`,
-  `build_schema_url`, `build_cli` и параметризуемых
+  `build_schema_url`, `build_cli`, параметризуемых
   `generate_schema(..., schema_url=...)` / `write_schema_file(...,
-  schema_url=...)`.
+  schema_url=...)`, `ElementState` / `Waiter` / `ResolvedWaiter` /
+  `LazyElements` / `WebDriverScreenshotProvider` /
+  `WebmScreencastRecorder`, а также нового
+  `register_per_test_rebuilder` / `find_upwards` API из
+  `tquality_core.per_test_files`. Дополнительно берётся extras-группа
+  `[screencast]` (тянет `imageio` / `imageio-ffmpeg` / `numpy` /
+  `Pillow`) - эти пакеты больше не объявлены в `[project.dependencies]`
+  selenium-пакета напрямую, единственный источник правды - ядро.
 - **`LocatorUtils.normalize_xpath` / `LocatorUtils.xpath_literal`** -
   тонкие обёртки над `tquality_core.utils.xpath_utils.XPathUtils.normalize` /
   `.literal`. Логика идентична, публичный API не изменён.
@@ -32,11 +39,165 @@
   `draft/2020-12` (синхронно с ядром 0.1.6). Pydantic 2 эмитит
   2020-12-features, прежний диалект вводил валидаторы в заблуждение.
   Файл перегенерирован.
+- **`Waiter` переехал в `tquality_core`** - локальный
+  `tquality_selenium.services.waiter.Waiter` стал тонким реэкспортом
+  (`Waiter` + `WaitTimeoutError`). Логика polling'а - в ядре, никакой
+  зависимости от selenium больше нет.
+- **`SeleniumScreencastProvider` сокращён до тонкого адаптера**
+  (с ~230 до ~110 строк): frame-source-лестница BiDi → CDP →
+  классический `get_screenshot_as_png` живёт в этом пакете, склейка
+  PNG-кадров в webm/VP9 и фоновый цикл - в
+  `tquality_core.WebmScreencastRecorder`. Поведение и публичный API
+  без изменений; настройки по-прежнему берутся из
+  `SeleniumConfig.screencast`.
+- **`SeleniumScreenshotProvider` теперь алиас**
+  `tquality_core.WebDriverScreenshotProvider`. Класс с обоими
+  WebDriver'ами (selenium и appium) идентичен, поэтому реализация
+  одна. Импорт `from tquality_selenium import SeleniumScreenshotProvider`
+  работает как раньше.
+- **`LazyElements` переехал в ядро** - локальный
+  `tquality_selenium.services.lazy_elements.LazyElements` стал тонким
+  наследником `tquality_core.LazyElements[E]`, прокидывающим
+  browser-resolver из `SeleniumServices`. Snapshot-кэширование и
+  live-резолв - в ядре; публичный API не изменился.
+
+### Добавлено
+
+- **`ElementState` / `StatePredicate` / `StateSpec`** - переэкспорт
+  из ядра (`tquality_core`), доступны и через
+  `tquality_selenium.elements` и через top-level
+  `tquality_selenium.ElementState`. Каждый элемент теперь принимает
+  параметр `state` (`BaseElement(..., state=...)`) - предусловие,
+  которое автоматически ожидается перед `click()` / `submit()` /
+  `type_text()` / `append_text()`. Дефолты совпадают с appium-пакетом:
+  `Button`/`CheckBox` - `CLICKABLE`, `Input`/`Label`/`BaseElement` -
+  `DISPLAYED`. `ElementState.EXISTS_IN_ANY_STATE` отключает любые
+  ожидания (полезно для «странных» web-компонентов, где
+  `EC.element_to_be_clickable` ложно-отрицателен, но реальный клик
+  всё равно работает). `state` принимает callable-предикат
+  `(element) -> bool` для кастомных условий готовности.
+- **`DriverWaiter`** - новый сервис в DI-контейнере
+  (`SeleniumServices.driver_waiter`), `ResolvedWaiter[WebDriver]`
+  из ядра, тонкая обёртка над `Waiter` с прокинутым
+  `driver_resolver`. Используется `ElementWaiter` под капотом и
+  доступен напрямую для условий, которым нужен сам драйвер.
+- **`ElementFactory` методы принимают `state`** - все
+  `element/button/checkbox/label/input` и их `get_child_*`-варианты
+  принимают `state: StateSpec`. Дефолт сигнатуры повторяет дефолт
+  конструктора целевого класса; передавать вручную нужно только
+  когда стандартное условие мешает.
+- `ContextLocalSingleton[DriverWaiter]` в `SeleniumServices` -
+  собирается из `waiter` + `_resolve_driver_from_active`.
+- Реэкспорты в `tquality_selenium`: `ElementWaiter`,
+  `WaitTimeoutError`, `DriverWaiter`, `ElementState`,
+  `StatePredicate`, `StateSpec`, а также `ContextManager`,
+  `ContextWaiter`, `UnknownWindowError`.
+- **`ContextManager` (`SeleniumServices.context_manager`)** -
+  фасад фокуса сессии в браузере: окна/табы, фреймы, алерты.
+  Зеркало `tquality_appium.ContextManager` (минус native/webview-
+  переключения, которых в селениуме нет).
+  - Окна: `windows`, `current_window`, `switch_to_window(handle |
+    index)`, `with context.window(target):`.
+  - Фреймы: `switch_to_frame(name | index | element)`,
+    `back_to_default_content()`, `with context.frame(target):`.
+  - Алерты: `alert()`, `accept_alert()`, `dismiss_alert()`.
+  - `wait` - `ContextWaiter`, см. ниже.
+- **`ContextWaiter`** - тонкая обёртка над generic
+  `tquality_core.Waiter` для ожиданий, привязанных к контексту.
+  Доступ - `browser.context.wait`. Текущий API:
+  - `for_alert(predicate=None, *, timeout, poll_interval,
+    raise_on_timeout=False, message="")` - дождаться появления
+    `Alert`. Без `predicate` - вернуть первый же; с `predicate` -
+    тот, на котором `predicate(alert)` truthy. Возвращает `Alert`
+    либо `None` на таймаут; `raise_on_timeout=True` (или класс) -
+    поднимает. `NoAlertPresentException` глотается как «ещё не
+    готово».
+- **`BrowserService.context -> ContextManager`** - шорткат для
+  `SeleniumServices.get_service(ContextManager)`. Типизирован
+  через `TYPE_CHECKING`-импорт - IDE/mypy видят `ContextManager`
+  в `browser.context.<...>`.
+- **Per-test resolve `config.json5` под директорию теста.**
+  `SeleniumServices.setup(...)` теперь дополнительно регистрирует
+  rebuilder через
+  `tquality_core.register_per_test_rebuilder(...)`: перед каждым
+  тестом плагин ядра вызывает `cls._rebuild_configs_for_test(test_dir)`,
+  который chdir'ит в `test_dir`, пересобирает `SeleniumConfig()`
+  (так что `BaseConfig`-цепочка `config.json5` ищет от теста, а
+  не от CWD pytest'а) и `.override(...)`-ит DI-провайдер;
+  teardown откатывает override назад на baseline, посчитанный в
+  `setup(config_dir=...)` на старте сессии.
+  Регистрация идемпотентна: повторный `setup()` не плодит дубли.
+
+### Breaking
+
+- **`ElementWaiter.until_*` теперь возвращают `bool`,
+  а не сам элемент.** Раньше `button.wait.until_clickable().click()`
+  было одним выражением; теперь чейн на возвращаемом значении не
+  работает.
+  Миграция: разбейте на две строки (`button.wait.until_clickable();
+  button.click()`) или просто положитесь на автоматическое
+  предусловие из `state` - `button.click()` уже ждёт
+  `CLICKABLE` за счёт `Button` дефолта.
+  По умолчанию метод НЕ кидает исключение при таймауте, а возвращает
+  `False`; для прежнего поведения - `raise_on_timeout=True`
+  (или класс исключения).
+- **Сигнатура `ElementWaiter.__init__` изменилась:**
+  `(waiter: Waiter, element)` → `(driver_waiter: DriverWaiter, element)`.
+  Если вы инстанциировали `ElementWaiter` вручную - переключитесь на
+  `SeleniumServices.get_service(DriverWaiter)`. `element.wait` уже
+  использует новый путь.
+- **`BaseElement.click()` / `Button.submit()` / `Input.type_text()` /
+  `Input.append_text()` больше не зовут `wait.until_*` напрямую.**
+  Теперь они зовут `self._await_state()`, который смотрит на `state`
+  элемента. Поведение для дефолтных классов не меняется
+  (`Button.click()` всё так же ждёт CLICKABLE), но если вы создавали
+  `Button(by, state=ElementState.EXISTS_IN_ANY_STATE)`, ожидание
+  пропадает - это и есть смысл фичи.
+- **`ElementWaiter.until(...)` и связанные методы перешли на
+  keyword-only параметры** (`*` после `condition`/`timeout`):
+  `poll_interval`, `raise_on_timeout`, `message`. Позиционная передача
+  больше не компилируется.
+- **`BaseForm.wait_for_displayed(...)` теперь возвращает `bool`,
+  а не сам `BaseForm`**, и не кидает по умолчанию. Сигнатура и
+  дефолты выровнены с `element.wait.until_present(...)`:
+  `wait_for_displayed(timeout=None, *, poll_interval=None,
+  raise_on_timeout=False, message="")`.
+  Миграция:
+  - Раньше: `HomePage().wait_for_displayed()` падало с
+    `TimeoutException`, если экран не появился.
+    Теперь: вернётся `False`, тест молча пойдёт дальше.
+  - Если нужно прежнее поведение: явно
+    `HomePage().wait_for_displayed(raise_on_timeout=True)`
+    либо `assert HomePage().wait_for_displayed(), "Home page
+    not displayed"`.
+  - Если вы чейнили `HomePage().wait_for_displayed().some_button`,
+    переделайте в отдельный вызов: `home = HomePage();
+    home.wait_for_displayed(raise_on_timeout=True);
+    home.some_button.click()`.
 
 ### Удалено
 
 - Локальное дублирование `_resolve_ref` и тестов резолва версии
   схемы - теперь это покрытие живёт в `tquality-py-core`.
+
+### Внутреннее
+
+- `container.py`: `_resolve_driver_from_active` теперь падает на
+  fallback `SeleniumServices` (вместо `RuntimeError`) - даёт работать
+  `SeleniumServices.driver_waiter.override(...)` в тестах без полной
+  инициализации composition root'а. Аналогично добавлен
+  `_resolve_logger_from_active`.
+- `Waiter`-провайдер обогащён kwarg'ами `logger_resolver`,
+  `ignored_exceptions=(NoSuchElementException, StaleElementReferenceException)`,
+  `default_raise_cls=TimeoutException` - чтобы поведение по умолчанию
+  на таймаут (когда `raise_on_timeout=True`) совпадало с прежним
+  `WebDriverWait`-стилем.
+- Перерасклад тестов `tests/test_elements.py` под новый API: вместо
+  моков `LazyElements._browser` через `PropertyMock` - инстансный
+  override `collection._driver_resolver = CountingBrowser`; вместо
+  `_FakeWaiter(_Waiter)` - `_FakeDriverWaiter(_DriverWaiter)` без
+  `super().__init__()` (mypy clean); ассерты `result is btn`
+  заменены на `result is True/False`.
 
 ## [0.1.7] - 2026-05-15
 

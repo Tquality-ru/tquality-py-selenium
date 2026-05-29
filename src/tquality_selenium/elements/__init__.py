@@ -3,7 +3,23 @@ from tquality_selenium.elements.button import Button
 from tquality_selenium.elements.by import By
 from tquality_selenium.elements.by_kind import ByKind
 from tquality_selenium.elements.checkbox import CheckBox
+from tquality_selenium.elements.element_state import (
+    ElementState,
+    StatePredicate,
+    StateSpec,
+)
 from tquality_selenium.elements.input import Input
 from tquality_selenium.elements.label import Label
 
-__all__ = ["BaseElement", "Button", "By", "ByKind", "CheckBox", "Input", "Label"]
+__all__ = [
+    "BaseElement",
+    "Button",
+    "By",
+    "ByKind",
+    "CheckBox",
+    "ElementState",
+    "Input",
+    "Label",
+    "StatePredicate",
+    "StateSpec",
+]

@@ -31,7 +31,13 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "tquality-py-core>=0.1.6",
+    # `[screencast]` extra тянет imageio / imageio-ffmpeg / numpy / Pillow
+    # для webm-режима screencast'а (см. tquality_core.WebmScreencastRecorder).
+    # >=0.1.9 - per-test files plugin (`register_per_test_rebuilder` /
+    # `find_upwards`). Также подтягивает 0.1.8-фичи: ElementState /
+    # Waiter / ResolvedWaiter / LazyElements / WebDriverScreenshotProvider /
+    # WebmScreencastRecorder.
+    "tquality-py-core[screencast]>=0.1.9",
     "selenium>=4.25",
     # DI-контейнер `SeleniumServices` строится на DeclarativeContainer
     # из dependency-injector. Тянется и через tquality-py-core, но
@@ -43,14 +49,6 @@ dependencies = [
     # импортирует distutils.version.LooseVersion. setuptools >= 60 возвращает
     # distutils как shim.
     "setuptools>=60",
-    # Pillow - даунскейл кадров screencast'а перед кодированием в webm.
-    "pillow>=10",
-    # imageio + imageio-ffmpeg - кодирование кадров в webm (VP9). ffmpeg-
-    # бинарник ставится вместе с imageio-ffmpeg (Linux/macOS/Windows), внешних
-    # зависимостей не требует.
-    "imageio>=2.34",
-    "imageio-ffmpeg>=0.5",
-    "numpy>=1.26",
     "pytest-xdist>=3.8.0",
     "pytest>=9.0.3",
     "cssselect>=1.4.0",
@@ -71,9 +69,6 @@ tquality_selenium_page_source = "tquality_selenium.page_source_plugin"
 [dependency-groups]
 dev = [
     "mypy>=1.11",
-    # pytest-timeout: автообрыв зависших тестов с tracebackом всех потоков
-    # вместо ожидания 2h-таймаута job'а на CI. Метод `thread` применяется
-    # ко всем тестам глобально через `[tool.pytest.ini_options].timeout`.
     "pytest-timeout>=2.3",
     "pytest>=8.0",
 ]

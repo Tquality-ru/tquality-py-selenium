@@ -1,8 +1,11 @@
 from tquality_core import (
     BaseConfig,
+    ElementState,
     Locator,
     Logger,
     LogLevel,
+    StatePredicate,
+    StateSpec,
     StringUtils,
     step,
 )
@@ -26,22 +29,31 @@ from tquality_selenium.screencast_provider import SeleniumScreencastProvider
 from tquality_selenium.screenshot_provider import SeleniumScreenshotProvider
 from tquality_selenium.services import (
     CollectionFactory,
+    ContextManager,
+    ContextWaiter,
     DomField,
+    DriverWaiter,
     ElementFactory,
     ElementJsActions,
+    ElementWaiter,
     JsActions,
     LazyElements,
     PseudoElement,
     StyleProperty,
+    UnknownWindowError,
     Waiter,
+    WaitTimeoutError,
 )
 
 __all__ = [
     # Core re-exports
     "BaseConfig",
+    "ElementState",
     "Locator",
     "Logger",
     "LogLevel",
+    "StatePredicate",
+    "StateSpec",
     "StringUtils",
     "step",
     # Selenium-specific
@@ -54,9 +66,13 @@ __all__ = [
     "ByKind",
     "CheckBox",
     "CollectionFactory",
+    "ContextManager",
+    "ContextWaiter",
     "DomField",
+    "DriverWaiter",
     "ElementFactory",
     "ElementJsActions",
+    "ElementWaiter",
     "Input",
     "JsActions",
     "Label",
@@ -69,5 +85,7 @@ __all__ = [
     "SeleniumScreenshotProvider",
     "SeleniumServices",
     "StyleProperty",
+    "UnknownWindowError",
     "Waiter",
+    "WaitTimeoutError",
 ]

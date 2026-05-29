@@ -1,12 +1,20 @@
 """Waiter, привязанный к конкретному элементу.
 
-Создаётся самим элементом (`element.wait`); by/name/element берутся из
-бинда, поэтому методы не требуют их передачи. Каждый метод возвращает сам
-элемент - удобно чейнить:
+Все методы возвращают `bool` (`True` - условие выполнилось, `False` -
+истёк таймаут). По умолчанию исключение НЕ кидается; для жёсткого
+падения - `raise_on_timeout=True` либо класс исключения.
 
 ```python
-button.wait.until_clickable().click()
+if not button.wait.until_clickable():
+    pytest.fail("кнопка не стала кликабельной")
+
+button.wait.until_visible(raise_on_timeout=True)
+button.wait.until(predicate, raise_on_timeout=MyError, message="...",
+                  poll_interval=0.1)
 ```
+
+`for_computed_style` - утилита поверх `until(...)`, ждёт пока
+вычисленный CSS-стиль элемента совпадёт с ожидаемым значением.
 """
 from __future__ import annotations
 
@@ -16,16 +24,24 @@ from selenium.webdriver.support import expected_conditions as EC
 
 if TYPE_CHECKING:
     from tquality_selenium.elements.base_element import BaseElement
+    from tquality_selenium.services.driver_waiter import DriverWaiter
     from tquality_selenium.services.style_property import StyleProperty
-    from tquality_selenium.services.waiter import Waiter
 
 
 class ElementWaiter[E: "BaseElement"]:
-    """Ожидания, привязанные к элементу: visible/clickable/invisible/(not-)present
-    + произвольное условие + computed-style."""
+    """Ожидания, привязанные к элементу. Делегирует polling в `DriverWaiter`.
 
-    def __init__(self, waiter: Waiter, element: E) -> None:
-        self._waiter = waiter
+    Параметры (одинаковые у всех методов):
+
+    - `timeout` (сек) - default из `config.default_timeout`.
+    - `poll_interval` (сек) - пауза между опросами; default - 0.5s.
+    - `raise_on_timeout` - `False` (default), `True`, либо класс исключения.
+    - `message` - переопределяет авто-сгенерированный текст; попадает
+      в лог и в текст исключения.
+    """
+
+    def __init__(self, driver_waiter: DriverWaiter, element: E) -> None:
+        self._driver_waiter = driver_waiter
         self._element = element
 
     @property
@@ -35,68 +51,121 @@ class ElementWaiter[E: "BaseElement"]:
     def until(
         self,
         condition: Callable[[E], Any],
+        *,
         timeout: float | None = None,
+        poll_interval: float | None = None,
+        raise_on_timeout: bool | type[BaseException] = False,
         message: str = "",
-    ) -> E:
+    ) -> bool:
         """Произвольное условие. `condition` принимает сам элемент - доступны
         `is_displayed`, `js_actions`, `text`, `get_attribute`, ... -
         работать с `WebDriver` напрямую не нужно."""
-        self._waiter.until(
+        return self._driver_waiter.until(
             lambda _: condition(self._element),
-            message=f"{self._name_for_msg} to {message or 'meet custom condition'}",
             timeout=timeout,
+            poll_interval=poll_interval,
+            raise_on_timeout=raise_on_timeout,
+            message=message or f"{self._name_for_msg} to meet custom condition",
         )
-        return self._element
 
-    def until_visible(self, timeout: float | None = None) -> E:
-        self._waiter.until(
+    def until_visible(
+        self,
+        timeout: float | None = None,
+        *,
+        poll_interval: float | None = None,
+        raise_on_timeout: bool | type[BaseException] = False,
+        message: str = "",
+    ) -> bool:
+        return self._driver_waiter.until(
             EC.visibility_of_element_located(self._element.by),
-            message=f"{self._name_for_msg} to be visible",
             timeout=timeout,
+            poll_interval=poll_interval,
+            raise_on_timeout=raise_on_timeout,
+            message=message or f"{self._name_for_msg} to be visible",
         )
-        return self._element
 
-    def until_clickable(self, timeout: float | None = None) -> E:
-        self._waiter.until(
+    def until_clickable(
+        self,
+        timeout: float | None = None,
+        *,
+        poll_interval: float | None = None,
+        raise_on_timeout: bool | type[BaseException] = False,
+        message: str = "",
+    ) -> bool:
+        return self._driver_waiter.until(
             EC.element_to_be_clickable(self._element.by),
-            message=f"{self._name_for_msg} to be clickable",
             timeout=timeout,
+            poll_interval=poll_interval,
+            raise_on_timeout=raise_on_timeout,
+            message=message or f"{self._name_for_msg} to be clickable",
         )
-        return self._element
 
-    def until_present(self, timeout: float | None = None) -> E:
-        self._waiter.until(
+    def until_present(
+        self,
+        timeout: float | None = None,
+        *,
+        poll_interval: float | None = None,
+        raise_on_timeout: bool | type[BaseException] = False,
+        message: str = "",
+    ) -> bool:
+        return self._driver_waiter.until(
             EC.presence_of_element_located(self._element.by),
-            message=f"{self._name_for_msg} to be present",
             timeout=timeout,
+            poll_interval=poll_interval,
+            raise_on_timeout=raise_on_timeout,
+            message=message or f"{self._name_for_msg} to be present",
         )
-        return self._element
 
-    def until_invisible(self, timeout: float | None = None) -> E:
-        self._waiter.until(
+    def until_invisible(
+        self,
+        timeout: float | None = None,
+        *,
+        poll_interval: float | None = None,
+        raise_on_timeout: bool | type[BaseException] = False,
+        message: str = "",
+    ) -> bool:
+        return self._driver_waiter.until(
             EC.invisibility_of_element_located(self._element.by),
-            message=f"{self._name_for_msg} to be invisible",
             timeout=timeout,
+            poll_interval=poll_interval,
+            raise_on_timeout=raise_on_timeout,
+            message=message or f"{self._name_for_msg} to be invisible",
         )
-        return self._element
 
-    def until_not_present(self, timeout: float | None = None) -> E:
+    def until_not_present(
+        self,
+        timeout: float | None = None,
+        *,
+        poll_interval: float | None = None,
+        raise_on_timeout: bool | type[BaseException] = False,
+        message: str = "",
+    ) -> bool:
         by = self._element.by
-        self._waiter.until(
+        return self._driver_waiter.until(
             lambda driver: not driver.find_elements(*by),
-            message=f"{self._name_for_msg} to be not present",
             timeout=timeout,
+            poll_interval=poll_interval,
+            raise_on_timeout=raise_on_timeout,
+            message=message or f"{self._name_for_msg} to be not present",
         )
-        return self._element
 
     def for_computed_style(
         self,
         style_property: str | StyleProperty,
         expected_value: str,
+        *,
         timeout: float | None = None,
-    ) -> E:
+        poll_interval: float | None = None,
+        raise_on_timeout: bool | type[BaseException] = False,
+        message: str = "",
+    ) -> bool:
         return self.until(
             lambda e: e.js_actions.get_computed_style(style_property) == expected_value,
-            timeout,
-            message=f"have computed style {style_property} equal to {expected_value!r}",
+            timeout=timeout,
+            poll_interval=poll_interval,
+            raise_on_timeout=raise_on_timeout,
+            message=(
+                message
+                or f"{self._name_for_msg} computed style {style_property}={expected_value!r}"
+            ),
         )

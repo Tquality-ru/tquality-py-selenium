@@ -50,6 +50,21 @@ class BaseForm:
     def is_displayed(self) -> bool:
         return self._unique_element.is_displayed
 
-    def wait_for_displayed(self, timeout: float | None = None) -> BaseForm:
-        self._unique_element.wait.until_present(timeout)
-        return self
+    def wait_for_displayed(
+        self,
+        timeout: float | None = None,
+        *,
+        poll_interval: float | None = None,
+        raise_on_timeout: bool | type[BaseException] = False,
+        message: str = "",
+    ) -> bool:
+        """Ждать появления `unique_element`. Сигнатура и дефолты совпадают
+        с `element.wait.until_present(...)`: возвращает `bool` (не сам
+        `BaseForm`), таймаут не кидает по умолчанию - используйте
+        `raise_on_timeout=True` для жёсткого падения."""
+        return self._unique_element.wait.until_present(
+            timeout,
+            poll_interval=poll_interval,
+            raise_on_timeout=raise_on_timeout,
+            message=message or f"{self._name} to be displayed",
+        )

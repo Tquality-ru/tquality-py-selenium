@@ -67,6 +67,10 @@ from typing import Any, Iterator, TypeVar
 from dependency_injector import containers, providers
 
 from tquality_core import Logger, set_logger_resolver
+from tquality_core.per_test_files import (
+    cwd as _per_test_cwd,
+    register_per_test_rebuilder,
+)
 
 from tquality_selenium.browser import (
     BrowserService,
@@ -76,17 +80,32 @@ from tquality_selenium.config import SeleniumConfig
 from tquality_selenium.screencast_provider import SeleniumScreencastProvider
 from tquality_selenium.screenshot_provider import SeleniumScreenshotProvider
 from tquality_selenium.services.collection_factory import CollectionFactory
+from tquality_selenium.services.context_manager import ContextManager
+from tquality_selenium.services.driver_waiter import DriverWaiter
 from tquality_selenium.services.element_factory import ElementFactory
 from tquality_selenium.services.js_actions import JsActions
 from tquality_selenium.services.waiter import Waiter
 
 
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    StaleElementReferenceException,
+    TimeoutException,
+)
+
+
 def _resolve_driver_from_active() -> Any:
-    """Резолвит WebDriver через активный composition root (см. setup())."""
-    active = _resolve_active()
-    if active is None:
-        raise RuntimeError("SeleniumServices.setup() не вызван")
+    """Резолвит WebDriver через активный composition root.
+    Fallback на `SeleniumServices` класс - даёт работать `.override()`
+    в тестах без полной инициализации composition root'а."""
+    active = _resolve_active() or SeleniumServices
     return active.browser().driver
+
+
+def _resolve_logger_from_active() -> Any:
+    """Резолвит активный Logger - fallback на `SeleniumServices` класс."""
+    active = _resolve_active() or SeleniumServices
+    return active.logger()
 
 T = TypeVar("T")
 
@@ -150,7 +169,23 @@ class SeleniumServices(containers.DeclarativeContainer):
         )
     )
     waiter: providers.ContextLocalSingleton[Waiter] = (
-        providers.ContextLocalSingleton(Waiter, config=config)
+        providers.ContextLocalSingleton(
+            Waiter,
+            config=config,
+            logger_resolver=_resolve_logger_from_active,
+            ignored_exceptions=(
+                NoSuchElementException,
+                StaleElementReferenceException,
+            ),
+            default_raise_cls=TimeoutException,
+        )
+    )
+    driver_waiter: providers.ContextLocalSingleton[DriverWaiter] = (
+        providers.ContextLocalSingleton(
+            DriverWaiter,
+            waiter=waiter,
+            driver_resolver=_resolve_driver_from_active,
+        )
     )
     element_factory: providers.Singleton[ElementFactory] = (
         providers.Singleton(ElementFactory)
@@ -158,6 +193,9 @@ class SeleniumServices(containers.DeclarativeContainer):
     js_actions: providers.Singleton[JsActions] = providers.Singleton(JsActions)
     collection_factory: providers.Singleton[CollectionFactory] = (
         providers.Singleton(CollectionFactory)
+    )
+    context_manager: providers.Singleton[ContextManager] = (
+        providers.Singleton(ContextManager)
     )
 
     @classmethod
@@ -188,6 +226,25 @@ class SeleniumServices(containers.DeclarativeContainer):
         global _default_services
         _default_services = cls
         set_logger_resolver(lambda: cls.logger())
+        register_per_test_rebuilder(cls._rebuild_configs_for_test)
+
+    @classmethod
+    def _rebuild_configs_for_test(cls, test_dir: Path) -> Any:
+        """Перестроить `config` под директорию теста.
+
+        `BaseConfig` уже умеет цепочку `config.json5` от CWD к корню
+        workspace - chdir'ив в `test_dir`, мы получаем
+        `tests/<suite>/config.json5` поверх корневого. Возвращает
+        teardown-колбэк, сбрасывающий override.
+        """
+        with _per_test_cwd(test_dir):
+            new_config = SeleniumConfig()
+        cls.config.override(new_config)
+
+        def _teardown() -> None:
+            cls.config.reset_override()
+
+        return _teardown
 
     @classmethod
     @contextmanager

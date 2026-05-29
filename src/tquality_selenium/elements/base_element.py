@@ -16,15 +16,23 @@ from typing import Any, Self
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.remote.webelement import WebElement
 
+from tquality_core import ElementState, StatePredicate, StateSpec
+
 from tquality_selenium.elements.by import By
 from tquality_selenium.services.element_waiter import ElementWaiter
 from tquality_selenium.services.js_actions import ElementJsActions
 
 
 class BaseElement:
-    def __init__(self, by: By, name: str = "") -> None:
+    def __init__(
+        self,
+        by: By,
+        name: str = "",
+        state: StateSpec = ElementState.DISPLAYED,
+    ) -> None:
         self._by = by
         self._name = name or f"{self.__class__.__name__}({by.by_kind.value}={by.value!r})"
+        self._state: StateSpec = state
 
     @property
     def by(self) -> By:
@@ -33,6 +41,31 @@ class BaseElement:
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def state(self) -> StateSpec:
+        return self._state
+
+    def _await_state(self, timeout: float | None = None) -> None:
+        """Ждать выполнения предусловия `self._state` перед взаимодействием.
+        Поднимает `TimeoutException`, если состояние не достигнуто."""
+        state = self._state
+        if state is ElementState.EXISTS_IN_ANY_STATE:
+            return
+        if state is ElementState.CLICKABLE:
+            self.wait.until_clickable(timeout, raise_on_timeout=True)
+            return
+        if state is ElementState.DISPLAYED:
+            self.wait.until_visible(timeout, raise_on_timeout=True)
+            return
+        if callable(state):
+            predicate: StatePredicate = state
+            self.wait.until(
+                predicate, timeout=timeout, raise_on_timeout=True,
+                message=f"{self._name} to meet custom state",
+            )
+            return
+        raise TypeError(f"Unsupported state spec: {state!r}")
 
     @property
     def _browser(self) -> Any:
@@ -49,11 +82,10 @@ class BaseElement:
     @property
     def wait(self) -> ElementWaiter[Self]:
         """Ожидания, привязанные к этому элементу. Каждый метод возвращает
-        сам элемент - удобно чейнить:
-        `button.wait.until_clickable().click()`."""
+        `bool` (см. `ElementWaiter`)."""
         from tquality_selenium.container import SeleniumServices
-        from tquality_selenium.services.waiter import Waiter
-        return ElementWaiter(SeleniumServices.get_service(Waiter), self)
+        from tquality_selenium.services.driver_waiter import DriverWaiter
+        return ElementWaiter(SeleniumServices.get_service(DriverWaiter), self)
 
     @property
     def js_actions(self) -> ElementJsActions:
@@ -106,12 +138,12 @@ class BaseElement:
             return self
         clicker = close_with if close_with is not None else self
         clicker.click()
-        self.wait.until_invisible(timeout)
+        self.wait.until_invisible(timeout, raise_on_timeout=True)
         return self
 
     def click(self) -> None:
         self._log.info("Click: %s", self._name)
-        self.wait.until_clickable()
+        self._await_state()
         with self.js_actions.maybe_highlight():
             self._find().click()
 
