@@ -13,8 +13,8 @@ from tquality_selenium.services.element_waiter import ElementWaiter
 from tquality_selenium.services.js_actions import (
     ElementJsActions,
     JsActions,
-    PseudoElement,
 )
+from tquality_selenium.services.pseudo_element import PseudoElement
 from tquality_selenium.services.lazy_elements import LazyElements
 from tquality_selenium.services.style_property import StyleProperty
 from tquality_selenium.services.waiter import Waiter, WaitTimeoutError

@@ -7,18 +7,19 @@ stale reference.
 """
 from __future__ import annotations
 
-import enum
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator
 
 from selenium.webdriver.remote.webelement import WebElement
 
+from tquality_selenium.services.pseudo_element import PseudoElement
 from tquality_selenium.services.style_property import StyleProperty
 
-
-class PseudoElement(enum.Enum):
-    BEFORE = "::before"
-    AFTER = "::after"
+__all__ = [
+    "ElementJsActions",
+    "JsActions",
+    "PseudoElement",
+]
 
 
 class JsActions:

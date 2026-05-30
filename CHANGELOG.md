@@ -3,6 +3,23 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
+## [0.1.9] - 2026-05-30
+
+### Добавлено
+
+- **`CollectionFactory`: computed-style readout.** `DomField.css_style(selector, prop, *, pseudo=...)` и `DomField.xpath_style(selector, prop)` собирают `window.getComputedStyle(el, pseudo).getPropertyValue(prop)`. `pseudo` принимает `PseudoElement` (`BEFORE` / `AFTER` / `MARKER` / `PLACEHOLDER` / `FIRST_LINE` / `FIRST_LETTER` / `SELECTION` / `BACKDROP`); для XPath псевдо-элементы не поддерживаются - в DOM-дереве их нет. Сырое значение - строка (`"none"`, `"rgb(0,0,0)"`, `'url("...")'`); для бизнес-логики оборачивайте поле в `@field_validator(mode="before")` или `Annotated[T, BeforeValidator(...)]`.
+- **`CollectionFactory`: type-driven dispatch для полей-элементов.** Аннотация `WebElement` - поле получает сам DOM-узел (без `.textContent`-преобразования); подходит для short-lived моделей, где сразу же кликают/читают, ссылка устаревает при перерисовке DOM. Аннотация-наследник `BaseElement` (`Button`, `Input`, любой кастомный) - фабрика лениво конструирует элемент с row-scoped XPath `(container_xpath)[N]<field_xpath>` и повторно резолвится при каждом обращении (как `LazyElements`). Модель требует `model_config = ConfigDict(arbitrary_types_allowed=True)`.
+- **`PseudoElement` расширен** до полного набора стандартных псевдо-элементов: к `BEFORE` / `AFTER` добавлены `MARKER`, `PLACEHOLDER`, `FIRST_LINE`, `FIRST_LETTER`, `SELECTION`, `BACKDROP`. Все варианты используют двойное двоеточие (`::xxx`) - единственная форма, корректно работающая в `getComputedStyle` для CSS3+ псевдо-элементов.
+
+### Изменено
+
+- **`PseudoElement` теперь `StrEnum`** (был `enum.Enum`). `member.value` по-прежнему возвращает строку (`"::before"` и т.д.), но `str(PseudoElement.BEFORE)` теперь даёт `"::before"` вместо `"PseudoElement.BEFORE"` - возможный breaking change, если код полагался на старый `repr`-стиль строкового представления.
+- **`PseudoElement` переехал** из `services/js_actions.py` в собственный модуль `services/pseudo_element.py`. Реэкспорт через `tquality_selenium.services.PseudoElement` и `tquality_selenium.PseudoElement` сохранён.
+
+### Тесты
+
+- Новый `tests/test_collection_factory.py` (26 тестов) и `tests/conftest.py` с фикстурой `make_collection_factory`. Покрытие: Pydantic-coercion для `int` / `float` / `bool` / `Decimal`, `@field_validator(mode="before"/"after")` и `Annotated[T, BeforeValidator/AfterValidator]`-валидация, `attr=` + `getAttribute || textContent`-fallback, computed-style readout с `pseudo=` и без, raw `WebElement`-поле, `BaseElement`-subclass-поле с проверкой row-scoped XPath и dot-prefix join (`.//foo` / `./foo` / `//foo`).
+
 ## [0.1.8] - 2026-05-29
 
 ### Изменено

@@ -150,12 +150,12 @@ To add custom services, subclass `SeleniumServices`. The scope is
 defined by the `dependency-injector` provider type (and where it is
 reset in fixtures):
 
-| Scope            | Provider                                                                | Lifetime                                                       |
-| ---------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------- |
-| **global**       | `providers.Singleton`                                                   | One instance per pytest process.                               |
-| **session**      | `providers.ContextLocalSingleton` + reset in a `scope="session"` fixture | One instance per session, reset on exit.                       |
-| **test**         | `providers.ContextLocalSingleton` + reset in an `autouse=True` fixture   | A new instance per test.                                       |
-| **transient**    | `providers.Factory`                                                     | A fresh instance on every `services.my_service()` call.        |
+| Scope         | Provider                                                                 | Lifetime                                                |
+|---------------|--------------------------------------------------------------------------|---------------------------------------------------------|
+| **global**    | `providers.Singleton`                                                    | One instance per pytest process.                        |
+| **session**   | `providers.ContextLocalSingleton` + reset in a `scope="session"` fixture | One instance per session, reset on exit.                |
+| **test**      | `providers.ContextLocalSingleton` + reset in an `autouse=True` fixture   | A new instance per test.                                |
+| **transient** | `providers.Factory`                                                      | A fresh instance on every `services.my_service()` call. |
 
 ```python
 # my_project/services.py
