@@ -11,7 +11,7 @@ from tquality_core import (
 )
 
 from tquality_selenium.browser import BrowserService
-from tquality_selenium.config import BrowserType, SeleniumConfig
+from tquality_selenium.config import BrowserType, Capabilities, SeleniumConfig
 from tquality_selenium.container import SeleniumServices
 from tquality_selenium.elements import (
     BaseElement,
@@ -64,6 +64,7 @@ __all__ = [
     "Button",
     "By",
     "ByKind",
+    "Capabilities",
     "CheckBox",
     "CollectionFactory",
     "ContextManager",

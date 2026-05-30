@@ -1,33 +1,25 @@
 """Smoke-тесты всех поддерживаемых браузеров.
 
-Для каждого браузера прогоняется минимальная цепочка через публичный API
-фреймворка: `SeleniumConfig` → `BrowserService._create_driver` → `open` →
-`driver.title` → `quit`. Тем самым тест одновременно:
+Каждый случай прогоняет минимальную цепочку через публичный API:
+`SeleniumConfig` → `BrowserService._create_driver` → `open` →
+`driver.title` → `quit`. Закрывает сразу две дыры:
 
-- healthcheck CI-окружения: на runner'е установлены все нужные браузеры
-  и драйверы;
+- healthcheck CI: на целевом node установлены нужные браузеры и драйверы;
 - интеграционный тест фреймворка: `BrowserService` корректно поднимает
-  каждую ветку `_create_driver` и корректно останавливает драйвер.
+  каждую ветку `_create_driver`.
 
 Используется data-URL, чтобы не зависеть от сети.
 
-Каждый smoke маркирован всеми ОС, на которых браузер поддерживается
-(см. `OSUtils._BROWSER_OS_SUPPORT`). CI-job выбирает свою подсетку:
-
-- `tests:macos-browsers-healthcheck`: `-m macos` - все 5 браузеров;
-- `tests:linux-browsers-healthcheck`: `-m linux` - chrome, firefox,
-  edge, undetected (selenium image поставляет всё запечённым);
-- `tests:windows-browsers-healthcheck`: `-m windows` - chrome, firefox,
-  edge, undetected.
-
-Юнит-тесты `tests:linux` фильтруются через `-m "not macos"` -
-любой smoke имеет хотя бы метку `macos` и не попадает в этот job.
+Маркеры `chrome` / `firefox` / `edge` / `safari` / `undetected` плюс
+`macos` / `linux` / `windows` крепятся на каждый pytest.param; CI-job
+выбирает подсетку через `-m`.
 """
 from __future__ import annotations
 
 import pytest
 
-from tquality_selenium import BrowserService, BrowserType, SeleniumConfig
+from tquality_selenium import BrowserService, BrowserType, Capabilities, SeleniumConfig
+from tquality_selenium.config import BrowserConfig
 
 _HEALTHCHECK_URL = (
     "data:text/html,<html><head><title>healthcheck</title>"
@@ -35,15 +27,79 @@ _HEALTHCHECK_URL = (
 )
 
 
-def _smoke(browser: BrowserType, *, headless: bool = True) -> None:
-    """Запустить браузер, открыть тестовую страницу, закрыть."""
-    from tquality_selenium.config import BrowserConfig
-
+@pytest.mark.parametrize(
+    ("browser", "headless", "capabilities"),
+    [
+        pytest.param(
+            BrowserType.CHROME, True,
+            Capabilities(platformName="mac", browserVersion="stable"),
+            id="chrome-mac",
+            marks=[pytest.mark.chrome, pytest.mark.macos],
+        ),
+        pytest.param(
+            BrowserType.CHROME, True,
+            Capabilities(platformName="linux", browserVersion="stable"),
+            id="chrome-linux",
+            marks=[pytest.mark.chrome, pytest.mark.linux],
+        ),
+        pytest.param(
+            BrowserType.CHROME, True,
+            Capabilities(platformName="windows", browserVersion="stable"),
+            id="chrome-windows",
+            marks=[pytest.mark.chrome, pytest.mark.windows],
+        ),
+        pytest.param(
+            BrowserType.FIREFOX, True, Capabilities(platformName="mac"),
+            id="firefox-mac",
+            marks=[pytest.mark.firefox, pytest.mark.macos],
+        ),
+        pytest.param(
+            BrowserType.FIREFOX, True, Capabilities(platformName="linux"),
+            id="firefox-linux",
+            marks=[pytest.mark.firefox, pytest.mark.linux],
+        ),
+        pytest.param(
+            BrowserType.FIREFOX, True, Capabilities(platformName="windows"),
+            id="firefox-windows",
+            marks=[pytest.mark.firefox, pytest.mark.windows],
+        ),
+        pytest.param(
+            BrowserType.EDGE, True, Capabilities(platformName="mac"),
+            id="edge-mac",
+            marks=[pytest.mark.edge, pytest.mark.macos],
+        ),
+        pytest.param(
+            BrowserType.EDGE, True, Capabilities(platformName="linux"),
+            id="edge-linux",
+            marks=[pytest.mark.edge, pytest.mark.linux],
+        ),
+        pytest.param(
+            BrowserType.EDGE, True, Capabilities(platformName="windows"),
+            id="edge-windows",
+            marks=[pytest.mark.edge, pytest.mark.windows],
+        ),
+        pytest.param(
+            BrowserType.SAFARI, False, Capabilities(platformName="mac"),
+            id="safari-mac",
+            marks=[pytest.mark.safari, pytest.mark.macos],
+        ),
+        pytest.param(
+            BrowserType.UNDETECTED_CHROME, True,
+            Capabilities(platformName="windows", browserVersion="undetected"),
+            id="undetected-windows",
+            marks=[pytest.mark.undetected, pytest.mark.windows],
+        ),
+    ],
+)
+def test_browsers_smoke(
+    browser: BrowserType,
+    headless: bool,
+    capabilities: Capabilities,
+) -> None:
     block = BrowserConfig(headless=headless)
-    # Применяем один и тот же блок к выбранному браузеру - остальные
-    # подтягивают дефолты.
     cfg = SeleniumConfig(
         browser=browser,
+        capabilities=capabilities,
         **{browser.value.replace("-", "_"): block},  # type: ignore[arg-type]
     )
     service = BrowserService(cfg)
@@ -52,42 +108,3 @@ def _smoke(browser: BrowserType, *, headless: bool = True) -> None:
         assert "healthcheck" in service.driver.title
     finally:
         service.quit()
-
-
-@pytest.mark.macos
-@pytest.mark.linux
-@pytest.mark.windows
-@pytest.mark.chrome
-def test_chrome_smoke() -> None:
-    _smoke(BrowserType.CHROME)
-
-
-@pytest.mark.macos
-@pytest.mark.linux
-@pytest.mark.windows
-@pytest.mark.firefox
-def test_firefox_smoke() -> None:
-    _smoke(BrowserType.FIREFOX)
-
-
-@pytest.mark.macos
-@pytest.mark.linux
-@pytest.mark.windows
-@pytest.mark.edge
-def test_edge_smoke() -> None:
-    _smoke(BrowserType.EDGE)
-
-
-@pytest.mark.macos
-@pytest.mark.safari
-def test_safari_smoke() -> None:
-    # Safari не поддерживает headless; BrowserService игнорирует флаг.
-    _smoke(BrowserType.SAFARI, headless=False)
-
-
-@pytest.mark.macos
-@pytest.mark.linux
-@pytest.mark.windows
-@pytest.mark.undetected
-def test_undetected_chrome_smoke() -> None:
-    _smoke(BrowserType.UNDETECTED_CHROME)

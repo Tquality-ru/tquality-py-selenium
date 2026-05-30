@@ -3,6 +3,20 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
+## [0.1.11] - 2026-05-30
+
+### Добавлено
+
+- **`SeleniumConfig.remote_url: str | None`** - URL Selenium Grid Hub. Если задан, `BrowserService` поднимает `webdriver.Remote(command_executor=remote_url, options=...)` вместо локального драйвера; тип браузера и `headless` берутся из соответствующих секций конфига, BiDi-capability применяется как и для локальных сессий. При remote-сессии `_check_os_support` пропускается - локальная ОС не ограничивает выбор браузера (Safari через Grid можно поднять с Linux-runner'а).
+- **`SeleniumConfig.capabilities: Capabilities`** - типизированный контракт W3C-capabilities для Remote-сессии. Известные поля задокументированы (`platformName`, `browserVersion`), произвольные ключи разрешены через `model_config = ConfigDict(extra="allow")` - схема для `config.json5` теперь даёт IDE-автокомплит и подсказки. Применяются через `options.set_capability(...)` перед `webdriver.Remote(...)`; при локальном запуске игнорируются.
+- **UC remote через `uc.ChromeOptions()`** - в Remote-режиме для `BrowserType.UNDETECTED_CHROME` собираются опции из `undetected_chromedriver`, а не из чистого `ChromeOptions`. Это даёт UC-специфичные аргументы (`--disable-blink-features=AutomationControlled`, прочие prefs) поверх Grid-сессии; роутинг в UC-слот - ответственность пользовательских capabilities (`browserVersion: undetected`).
+
+### Изменено
+
+- **Top-level export `Capabilities`** - `from tquality_selenium import Capabilities`.
+- **Явная зависимость `pydantic>=2.0`** в `[project.dependencies]`. Раньше тянулась транзитивно через `tquality-py-core`; теперь, когда `Capabilities` / `CollectionFactory`-валидаторы / `SeleniumConfig` напрямую используют Pydantic v2 API (`BaseModel`, `ConfigDict`, `field_validator`, `BeforeValidator`), пин закрепляется здесь - чтобы upstream-ядро могло сменить config-движок без поломки нашей валидации.
+- **CI pipeline сведен в один job** (`tests:`): юнит-тесты + browser smoke через Selenium Grid в одном прогоне с `TEST_REMOTE_URL`. Smoke `test_browsers_smoke` параметризуется по `(browser, platform_name)` с pytest.param-id'ами вида `chrome-mac` / `undetected-windows` (11 случаев: 3 chrome + 3 firefox + 3 edge + 1 safari + 1 undetected). Заменяет прежние `tests:linux` и `tests:browsers-healthcheck`.
+
 ## [0.1.10] - 2026-05-30
 
 ### Изменено

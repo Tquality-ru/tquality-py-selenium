@@ -39,6 +39,12 @@ dependencies = [
     # WebmScreencastRecorder.
     "tquality-py-core[screencast]>=0.1.9",
     "selenium>=4.00.0",
+    # `Capabilities`, `SeleniumConfig`, `CollectionFactory`-модели и
+    # валидаторы используют Pydantic v2 API напрямую (`BaseModel`,
+    # `ConfigDict(extra="allow")`, `field_validator`, `BeforeValidator`).
+    # Транзитивно тянется через `tquality-py-core`, но пин прописываем
+    # явно: ядро может сменить config-движок, не сломав нам валидацию.
+    "pydantic>=2.0",
     # DI-контейнер `SeleniumServices` строится на DeclarativeContainer
     # из dependency-injector. Тянется и через tquality-py-core, но
     # прописываем явно - чтобы upstream ядро могло сменить DI-движок,

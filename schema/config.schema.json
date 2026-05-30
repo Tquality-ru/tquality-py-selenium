@@ -44,6 +44,40 @@
       "title": "BrowserType",
       "type": "string"
     },
+    "Capabilities": {
+      "additionalProperties": true,
+      "description": "W3C-capabilities для Remote-сессии. Известные поля задокументированы;\nпроизвольные ключи разрешены через `extra=\"allow\"` - сохраняются в дампе\nи применяются как `set_capability(key, value)` без потерь.",
+      "properties": {
+        "platformName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Целевая ОС: `mac` / `linux` / `windows` / `android` / `ios`. Selenium Grid использует её для роутинга в node с подходящим stereotype. None - оставить на усмотрение Grid.",
+          "title": "Platformname"
+        },
+        "browserVersion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Версия или CfT-канал: `149.0.7827.54` / `stable` / `beta` / `dev`. Канальные значения заставляют Selenium Manager на Node скачать соответствующую копию браузера. None - системная версия.",
+          "title": "Browserversion"
+        }
+      },
+      "title": "Capabilities",
+      "type": "object"
+    },
     "ScreencastConfig": {
       "description": "Параметры видеозаписи шагов уровня WITH_SCREENCAST.",
       "properties": {
@@ -143,6 +177,23 @@
       "description": "Запрашивать у драйвера WebSocket-URL и поднимать BiDi-сессию. Спектр возможностей: https://www.selenium.dev/documentation/webdriver/bidi/. Отключите только если браузер или окружение не поддерживают BiDi (например, Safari <18.4 / macOS <15.4 - там сессия не поднимется при запросе webSocketUrl).",
       "title": "Bidi",
       "type": "boolean"
+    },
+    "remote_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "URL Selenium Grid Hub для запуска браузера через Remote WebDriver (например, http://hub.example:4444). Если None - запускается локальный браузер. Тип браузера и headless-флаг берутся из соответствующих секций конфига.",
+      "title": "Remote Url"
+    },
+    "capabilities": {
+      "$ref": "#/$defs/Capabilities",
+      "description": "W3C-capabilities для Remote-сессии. Известные поля - в `Capabilities`; произвольные ключи разрешены и проходят как есть. Применяются через `options.set_capability(...)` перед `webdriver.Remote(...)`. При локальном запуске игнорируются."
     }
   },
   "title": "SeleniumConfig",

@@ -22,9 +22,35 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from tquality_core import BaseConfig
+
+
+class Capabilities(BaseModel):
+    """W3C-capabilities для Remote-сессии. Известные поля задокументированы;
+    произвольные ключи разрешены через `extra="allow"` - сохраняются в дампе
+    и применяются как `set_capability(key, value)` без потерь.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    platformName: str | None = Field(
+        default=None,
+        description=(
+            "Целевая ОС: `mac` / `linux` / `windows` / `android` / `ios`. "
+            "Selenium Grid использует её для роутинга в node с подходящим "
+            "stereotype. None - оставить на усмотрение Grid."
+        ),
+    )
+    browserVersion: str | None = Field(
+        default=None,
+        description=(
+            "Версия или CfT-канал: `149.0.7827.54` / `stable` / `beta` / "
+            "`dev`. Канальные значения заставляют Selenium Manager на Node "
+            "скачать соответствующую копию браузера. None - системная версия."
+        ),
+    )
 
 
 class BrowserType(str, Enum):
@@ -104,6 +130,26 @@ class SeleniumConfig(BaseConfig):
             "Отключите только если браузер или окружение не поддерживают "
             "BiDi (например, Safari <18.4 / macOS <15.4 - там сессия не "
             "поднимется при запросе webSocketUrl)."
+        ),
+    )
+
+    remote_url: str | None = Field(
+        default=None,
+        description=(
+            "URL Selenium Grid Hub для запуска браузера через Remote "
+            "WebDriver (например, http://hub.example:4444). Если None - "
+            "запускается локальный браузер. Тип браузера и headless-флаг "
+            "берутся из соответствующих секций конфига."
+        ),
+    )
+
+    capabilities: Capabilities = Field(
+        default_factory=Capabilities,
+        description=(
+            "W3C-capabilities для Remote-сессии. Известные поля - в "
+            "`Capabilities`; произвольные ключи разрешены и проходят как "
+            "есть. Применяются через `options.set_capability(...)` перед "
+            "`webdriver.Remote(...)`. При локальном запуске игнорируются."
         ),
     )
 

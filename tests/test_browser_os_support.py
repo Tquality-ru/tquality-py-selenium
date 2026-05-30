@@ -68,7 +68,10 @@ def test_browser_service_raises_on_unsupported_os() -> None:
     if sys.platform == "darwin":
         pytest.skip("Safari поддерживается на macOS; нечего проверять")
 
-    cfg = SeleniumConfig(browser=BrowserType.SAFARI)
+    # Явно отключаем remote_url: если в env-окружении тестов выставлен
+    # `TEST_REMOTE_URL`, BrowserService пропустит OS-проверку (это для
+    # remote-режима намеренно) и тест станет no-op.
+    cfg = SeleniumConfig(browser=BrowserType.SAFARI, remote_url=None)
     with pytest.raises(BrowserNotSupportedError) as exc_info:
         BrowserService(cfg)
 

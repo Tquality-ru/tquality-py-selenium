@@ -189,7 +189,8 @@ class BrowserService:
 
     def __init__(self, config: SeleniumConfig) -> None:
         self._config = config
-        self._check_os_support()
+        if not config.remote_url:
+            self._check_os_support()
         self._driver = self._create_driver()
         _browser_started.set(True)
 
@@ -204,6 +205,8 @@ class BrowserService:
 
     def _create_driver(self) -> WebDriver:
         cfg = self._config
+        if cfg.remote_url:
+            return self._create_remote_driver()
         browser = cfg.browser
         active = cfg.active_browser
         bidi = cfg.bidi
@@ -278,6 +281,42 @@ class BrowserService:
         else:
             raise ValueError(f"Неподдерживаемый тип браузера: {browser!r}")
 
+        driver.implicitly_wait(0)
+        driver.set_page_load_timeout(active.page_load_timeout)
+        driver.set_window_size(active.window_width, active.window_height)
+        return driver
+
+    def _create_remote_driver(self) -> WebDriver:
+        cfg = self._config
+        assert cfg.remote_url, "remote_url не задан"
+        browser = cfg.browser
+        active = cfg.active_browser
+        if browser is BrowserType.FIREFOX:
+            opts: Any = FirefoxOptions()
+            if active.headless:
+                opts.add_argument("--headless")
+        elif browser is BrowserType.EDGE:
+            opts = EdgeOptions()
+            if active.headless:
+                opts.add_argument("--headless=new")
+        elif browser is BrowserType.SAFARI:
+            opts = SafariOptions()
+        elif browser is BrowserType.UNDETECTED_CHROME:
+            import undetected_chromedriver as uc
+            opts = uc.ChromeOptions()
+            if active.headless:
+                opts.add_argument("--headless=new")
+        elif browser is BrowserType.CHROME:
+            opts = ChromeOptions()
+            if active.headless:
+                opts.add_argument("--headless=new")
+        else:
+            raise ValueError(f"Неподдерживаемый тип браузера: {browser!r}")
+        if cfg.bidi:
+            _enable_bidi(opts)
+        for cap_key, cap_value in cfg.capabilities.model_dump(exclude_none=True).items():
+            opts.set_capability(cap_key, cap_value)
+        driver = webdriver.Remote(command_executor=cfg.remote_url, options=opts)
         driver.implicitly_wait(0)
         driver.set_page_load_timeout(active.page_load_timeout)
         driver.set_window_size(active.window_width, active.window_height)
