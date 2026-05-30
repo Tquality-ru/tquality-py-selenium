@@ -3,6 +3,12 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
+## [0.1.10] - 2026-05-30
+
+### Изменено
+
+- **BiDi включён по умолчанию через новое поле конфига `bidi: bool = true`.** `BrowserService` выставляет capability `webSocketUrl=True` для Chrome / Firefox / Edge / undetected-chrome / Safari, и `driver.input` / `driver.browsing_context` / `driver.script` поднимаются штатно. Без этого BiDi-сервисы падали с `Unable to find url to connect to from capabilities`, а BiDi-путь в `SeleniumScreencastProvider` тихо валился в CDP/PNG-фолбэк. Safari поддерживает BiDi частично с 18.4 (macOS 15.4): доступны `script.*` и базовый `browsingContext.*`, но `input.*` / `network.*` / `browsingContext.captureScreenshot` ещё нет. На macOS <15.4 / Safari <18.4 поставьте `bidi: false`, иначе сессия не поднимется. Полный спектр возможностей: https://www.selenium.dev/documentation/webdriver/bidi/.
+
 ## [0.1.9] - 2026-05-30
 
 ### Добавлено

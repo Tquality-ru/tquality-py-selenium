@@ -96,6 +96,17 @@ class SeleniumConfig(BaseConfig):
         ),
     )
 
+    bidi: bool = Field(
+        default=True,
+        description=(
+            "Запрашивать у драйвера WebSocket-URL и поднимать BiDi-сессию. "
+            "Спектр возможностей: https://www.selenium.dev/documentation/webdriver/bidi/. "
+            "Отключите только если браузер или окружение не поддерживают "
+            "BiDi (например, Safari <18.4 / macOS <15.4 - там сессия не "
+            "поднимется при запросе webSocketUrl)."
+        ),
+    )
+
     @property
     def active_browser(self) -> BrowserConfig:
         """Конфиг того браузера, что выбран в `self.browser`."""

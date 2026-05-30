@@ -134,6 +134,17 @@ def _copy_chromedriver_to_own_cache(sm_path: str) -> str:
     return str(own_path)
 
 
+def _enable_bidi(opts: Any) -> None:
+    """Запросить у драйвера WebSocket-URL для BiDi-сессии.
+
+    Без этой возможности `driver.input`, `driver.browsing_context`,
+    `driver.script` и прочие BiDi-сервисы падают с `Unable to find
+    url to connect to from capabilities`. Браузер возвращает URL в
+    capabilities, Selenium ставит на него WebSocket-соединение.
+    """
+    opts.set_capability("webSocketUrl", True)
+
+
 def _apply_linux_docker_chromium_flags(opts: Any) -> None:
     """Добавить флаги, нужные Chromium-based браузерам только в Linux
     под Docker: `--no-sandbox` (sandbox конфликтует с root-юзером
@@ -195,22 +206,34 @@ class BrowserService:
         cfg = self._config
         browser = cfg.browser
         active = cfg.active_browser
+        bidi = cfg.bidi
         driver: WebDriver
 
         if browser is BrowserType.FIREFOX:
             ff_opts = FirefoxOptions()
             if active.headless:
                 ff_opts.add_argument("--headless")
+            if bidi:
+                _enable_bidi(ff_opts)
             driver = webdriver.Firefox(options=ff_opts)
         elif browser is BrowserType.EDGE:
             edge_opts = EdgeOptions()
             if active.headless:
                 edge_opts.add_argument("--headless=new")
             _apply_linux_docker_chromium_flags(edge_opts)
+            if bidi:
+                _enable_bidi(edge_opts)
             driver = webdriver.Edge(options=edge_opts)
         elif browser is BrowserType.SAFARI:
-            # Safari не поддерживает headless; игнорируем флаг.
+            # Safari не поддерживает headless; игнорируем флаг. BiDi в
+            # safaridriver частично поддерживается с Safari 18.4 (macOS
+            # 15.4): `script.*` и базовый `browsingContext.*` работают,
+            # `input.*` / `network.*` / `browsingContext.captureScreenshot`
+            # ещё нет. На macOS <15.4 webSocketUrl-capability приводит к
+            # отказу в сессии - там выставьте `bidi: false`.
             safari_opts = SafariOptions()
+            if bidi:
+                _enable_bidi(safari_opts)
             driver = webdriver.Safari(options=safari_opts)
         elif browser is BrowserType.UNDETECTED_CHROME:
             import undetected_chromedriver as uc
@@ -224,6 +247,8 @@ class BrowserService:
             if active.headless:
                 uc_opts.add_argument("--headless=new")
             _apply_linux_docker_chromium_flags(uc_opts)
+            if bidi:
+                _enable_bidi(uc_opts)
             # Берём chromedriver, который уже подобрал Selenium Manager
             # (правильная архитектура), копируем в свой кэш и патчим
             # копию - SM-исходник трогать нельзя, им пользуется regular
@@ -247,6 +272,8 @@ class BrowserService:
             if active.headless:
                 ch_opts.add_argument("--headless=new")
             _apply_linux_docker_chromium_flags(ch_opts)
+            if bidi:
+                _enable_bidi(ch_opts)
             driver = webdriver.Chrome(options=ch_opts)
         else:
             raise ValueError(f"Неподдерживаемый тип браузера: {browser!r}")

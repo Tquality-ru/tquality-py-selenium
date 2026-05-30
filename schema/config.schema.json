@@ -137,6 +137,12 @@
       "description": "Прикреплять текущий driver.page_source к allure-отчёту при падении теста (HTML-вложение). Включено по умолчанию: diff между ожидаемым и фактическим DOM почти всегда нужен для расследования. Если сессия мертва, прикрепляется диагностический комментарий вместо HTML.",
       "title": "Attach Page Source On Failure",
       "type": "boolean"
+    },
+    "bidi": {
+      "default": true,
+      "description": "Запрашивать у драйвера WebSocket-URL и поднимать BiDi-сессию. Спектр возможностей: https://www.selenium.dev/documentation/webdriver/bidi/. Отключите только если браузер или окружение не поддерживают BiDi (например, Safari <18.4 / macOS <15.4 - там сессия не поднимется при запросе webSocketUrl).",
+      "title": "Bidi",
+      "type": "boolean"
     }
   },
   "title": "SeleniumConfig",
