@@ -384,7 +384,7 @@ def test_get_computed_style_passes_property_name_to_driver() -> None:
 
     fake_driver = MagicMock()
     fake_driver.execute_script.return_value = "block"
-    ja = ElementJsActions(find=MagicMock())
+    ja = ElementJsActions(find=MagicMock(), driver_getter=MagicMock())
 
     with patch.object(
         ElementJsActions, "_driver", new_callable=PropertyMock,
@@ -411,7 +411,7 @@ def test_get_computed_styles_returns_dict_str_str() -> None:
     fake_driver.execute_script.return_value = {
         "display": "block", "opacity": "1", "z-index": "auto",
     }
-    ja = ElementJsActions(find=MagicMock())
+    ja = ElementJsActions(find=MagicMock(), driver_getter=MagicMock())
 
     with patch.object(
         ElementJsActions, "_driver", new_callable=PropertyMock,

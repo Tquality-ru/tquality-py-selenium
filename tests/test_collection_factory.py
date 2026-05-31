@@ -15,7 +15,7 @@ JS-скрипт фабрики всегда возвращает строки (`
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Annotated, Any, Callable
+from typing import Annotated, Any, Callable, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -37,6 +37,13 @@ from tquality_selenium.services.collection_factory import (
 from tquality_selenium.services.pseudo_element import PseudoElement
 
 MakeFactory = Callable[[list[dict[str, Any]]], CollectionFactory]
+
+
+def _last_script(factory: CollectionFactory) -> str:
+    """Последний JS-скрипт, переданный в `execute_script` мок-драйвера."""
+    execute = cast(MagicMock, factory._driver.execute_script)
+    (script,), _ = execute.call_args
+    return cast(str, script)
 
 
 # --- встроенная Pydantic coercion -------------------------------------------
@@ -274,7 +281,7 @@ def test_css_attr_emits_getattribute_with_text_fallback(
     factory = make_collection_factory([{"title": "X"}])
     factory.from_page(Product, ".card")
 
-    (script,), _ = factory._driver.execute_script.call_args
+    script = _last_script(factory)
     assert "el.querySelector('.name')" in script
     assert "getAttribute('data-title')" in script
     assert "textContent.trim()" in script
@@ -290,7 +297,7 @@ def test_xpath_attr_emits_getattribute_with_text_fallback(
     factory = make_collection_factory([{"href": "/p/1"}])
     factory.from_page(Product, ".card")
 
-    (script,), _ = factory._driver.execute_script.call_args
+    script = _last_script(factory)
     assert "document.evaluate('.//a'" in script
     assert "singleNodeValue" in script
     assert "getAttribute('href')" in script
@@ -324,7 +331,7 @@ def test_attr_with_quote_in_name_is_escaped_in_script(
     factory = make_collection_factory([{"x": "y"}])
     factory.from_page(Product, ".card")
 
-    (script,), _ = factory._driver.execute_script.call_args
+    script = _last_script(factory)
     assert "getAttribute('data-it\\'s')" in script
 
 
@@ -338,7 +345,7 @@ def test_field_without_attr_uses_text_content_only(
     factory = make_collection_factory([{"name": "Widget"}])
     factory.from_page(Product, ".card")
 
-    (script,), _ = factory._driver.execute_script.call_args
+    script = _last_script(factory)
     assert "getAttribute" not in script
     assert "textContent.trim()" in script
 
@@ -356,7 +363,7 @@ def test_css_style_emits_get_computed_style_with_null_pseudo(
     factory = make_collection_factory([{"bg": "rgb(0, 0, 0)"}])
     factory.from_page(Card, ".card")
 
-    (script,), _ = factory._driver.execute_script.call_args
+    script = _last_script(factory)
     assert "el.querySelector('.thumb')" in script
     assert "window.getComputedStyle(_bg, null)" in script
     assert "getPropertyValue('background-color')" in script
@@ -376,7 +383,7 @@ def test_css_style_with_pseudo_emits_pseudo_arg(
     factory = make_collection_factory([{"content": '"✓"'}])
     factory.from_page(Card, ".card")
 
-    (script,), _ = factory._driver.execute_script.call_args
+    script = _last_script(factory)
     assert "window.getComputedStyle(_content, '::before')" in script
     assert "getPropertyValue('content')" in script
 
@@ -391,7 +398,7 @@ def test_xpath_style_emits_evaluate_and_get_computed_style(
     factory = make_collection_factory([{"display": "none"}])
     factory.from_page(Card, ".card")
 
-    (script,), _ = factory._driver.execute_script.call_args
+    script = _last_script(factory)
     assert "document.evaluate('.//div'" in script
     assert "singleNodeValue" in script
     assert "window.getComputedStyle(_display, null)" in script
@@ -431,7 +438,7 @@ def test_style_missing_element_returns_empty_string(
     factory = make_collection_factory([{"bg": ""}])
     factory.from_page(Card, ".card")
 
-    (script,), _ = factory._driver.execute_script.call_args
+    script = _last_script(factory)
     assert "_bg ? window.getComputedStyle" in script
     assert ": ''" in script
 
@@ -459,7 +466,7 @@ def test_webelement_typed_field_receives_raw_element(
 
     assert item.button is fake_button
 
-    (script,), _ = factory._driver.execute_script.call_args
+    script = _last_script(factory)
     assert "el.querySelector('.btn')" in script
     assert "item['button'] = _button;" in script
     assert "textContent" not in script
@@ -494,7 +501,7 @@ def test_base_element_subclass_typed_field_is_built_with_row_scoped_locator(
     assert "[2]" in locators[1]
     assert "[3]" in locators[2]
 
-    (script,), _ = factory._driver.execute_script.call_args
+    script = _last_script(factory)
     assert "querySelectorAll('.product-card')" in script
     assert "item['action']" not in script
     assert "var _action" not in script
@@ -518,7 +525,7 @@ def test_base_element_field_does_not_pollute_other_fields(
     assert [r.title for r in rows] == ["Widget", "Gadget"]
     assert all(isinstance(r.action, Button) for r in rows)
 
-    (script,), _ = factory._driver.execute_script.call_args
+    script = _last_script(factory)
     assert "var _title" in script
     assert "var _action" not in script
 

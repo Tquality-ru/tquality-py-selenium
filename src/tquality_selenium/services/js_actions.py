@@ -1,19 +1,27 @@
 """JS-действия: driver-scope (`JsActions`) и element-scope (`ElementJsActions`).
 
-`JsActions` работает на уровне driver'а (execute, pseudo-element style).
-`ElementJsActions` принимает callable-резолвер элемента и выполняет действия
-на нем - элемент находится заново при каждом вызове, что снимает проблему
-stale reference.
+`JsActions` работает на уровне driver'а; `ElementJsActions` принимает
+callable-резолвер элемента и выполняет действия на нем - элемент
+находится заново при каждом вызове, что снимает stale reference.
+
+Оба класса получают driver через `driver_getter`-композицию от
+`BrowserService` (см. `BrowserService.js_actions` / `BaseElement.js_actions`)
+вместо прямой подвязки к DI-контейнеру.
 """
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, TYPE_CHECKING
 
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 
 from tquality_selenium.services.pseudo_element import PseudoElement
 from tquality_selenium.services.style_property import StyleProperty
+
+if TYPE_CHECKING:
+    from tquality_core import Logger
+    from tquality_selenium.config import SeleniumConfig
 
 __all__ = [
     "ElementJsActions",
@@ -23,16 +31,22 @@ __all__ = [
 
 
 class JsActions:
-    """Низкоуровневые JS-операции на уровне driver'а."""
+    """Низкоуровневые JS-операции на уровне driver'а.
+
+    Driver приходит через `driver_getter` (композиция от `BrowserService`).
+    Logger/config резолвятся через DI - они per-test и не зависят от
+    конкретного браузера.
+    """
+
+    def __init__(self, driver_getter: Callable[[], WebDriver]) -> None:
+        self._driver_getter = driver_getter
 
     @property
-    def _driver(self) -> Any:
-        from tquality_selenium.browser import BrowserService
-        from tquality_selenium.container import SeleniumServices
-        return SeleniumServices.get_service(BrowserService).driver
+    def _driver(self) -> WebDriver:
+        return self._driver_getter()
 
     @property
-    def _log(self) -> Any:
+    def _log(self) -> Logger:
         from tquality_core import Logger
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(Logger)
@@ -58,29 +72,28 @@ class JsActions:
 
 
 class ElementJsActions:
-    """JS-действия, привязанные к элементу через лениво-вычисляемый резолвер.
+    """JS-действия, привязанные к элементу через лениво-вычисляемый резолвер."""
 
-    Принимает callable, возвращающий `WebElement` при каждом вызове -
-    элемент находится заново, что снимает stale reference.
-    """
-
-    def __init__(self, find: Callable[[], WebElement]) -> None:
+    def __init__(
+        self,
+        find: Callable[[], WebElement],
+        driver_getter: Callable[[], WebDriver],
+    ) -> None:
         self._find = find
+        self._driver_getter = driver_getter
 
     @property
-    def _driver(self) -> Any:
-        from tquality_selenium.browser import BrowserService
-        from tquality_selenium.container import SeleniumServices
-        return SeleniumServices.get_service(BrowserService).driver
+    def _driver(self) -> WebDriver:
+        return self._driver_getter()
 
     @property
-    def _log(self) -> Any:
+    def _log(self) -> Logger:
         from tquality_core import Logger
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(Logger)
 
     @property
-    def _config(self) -> Any:
+    def _config(self) -> SeleniumConfig:
         from tquality_selenium.config import SeleniumConfig
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(SeleniumConfig)

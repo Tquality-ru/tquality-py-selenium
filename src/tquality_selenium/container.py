@@ -65,6 +65,7 @@ from pathlib import Path
 from typing import Any, Iterator, TypeVar
 
 from dependency_injector import containers, providers
+from selenium.webdriver.remote.webdriver import WebDriver
 
 from tquality_core import Logger, set_logger_resolver
 from tquality_core.per_test_files import (
@@ -72,10 +73,7 @@ from tquality_core.per_test_files import (
     register_per_test_rebuilder,
 )
 
-from tquality_selenium.browser import (
-    BrowserService,
-    is_browser_started as _is_browser_started,
-)
+from tquality_selenium.browser import BrowserService
 from tquality_selenium.config import SeleniumConfig
 from tquality_selenium.screencast_provider import SeleniumScreencastProvider
 from tquality_selenium.screenshot_provider import SeleniumScreenshotProvider
@@ -83,7 +81,6 @@ from tquality_selenium.services.collection_factory import CollectionFactory
 from tquality_selenium.services.context_manager import ContextManager
 from tquality_selenium.services.driver_waiter import DriverWaiter
 from tquality_selenium.services.element_factory import ElementFactory
-from tquality_selenium.services.js_actions import JsActions
 from tquality_selenium.services.waiter import Waiter
 
 
@@ -94,7 +91,7 @@ from selenium.common.exceptions import (
 )
 
 
-def _resolve_driver_from_active() -> Any:
+def _resolve_driver_from_active() -> WebDriver:
     """Резолвит WebDriver через активный composition root.
     Fallback на `SeleniumServices` класс - даёт работать `.override()`
     в тестах без полной инициализации composition root'а."""
@@ -102,7 +99,7 @@ def _resolve_driver_from_active() -> Any:
     return active.browser().driver
 
 
-def _resolve_logger_from_active() -> Any:
+def _resolve_logger_from_active() -> Logger:
     """Резолвит активный Logger - fallback на `SeleniumServices` класс."""
     active = _resolve_active() or SeleniumServices
     return active.logger()
@@ -149,14 +146,14 @@ class SeleniumServices(containers.DeclarativeContainer):
         providers.Singleton(
             SeleniumScreenshotProvider,
             driver_resolver=_resolve_driver_from_active,
-            availability_check=_is_browser_started,
+            availability_check=BrowserService.is_started,
         )
     )
     screencast_provider: providers.Singleton[SeleniumScreencastProvider] = (
         providers.Singleton(
             SeleniumScreencastProvider,
             driver_resolver=_resolve_driver_from_active,
-            availability_check=_is_browser_started,
+            availability_check=BrowserService.is_started,
             config=config,
         )
     )
@@ -190,7 +187,6 @@ class SeleniumServices(containers.DeclarativeContainer):
     element_factory: providers.Singleton[ElementFactory] = (
         providers.Singleton(ElementFactory)
     )
-    js_actions: providers.Singleton[JsActions] = providers.Singleton(JsActions)
     collection_factory: providers.Singleton[CollectionFactory] = (
         providers.Singleton(CollectionFactory)
     )
@@ -299,7 +295,7 @@ class SeleniumServices(containers.DeclarativeContainer):
         Проверяет contextvar, выставляемый `BrowserService` при создании
         и снимаемый при `quit()`.
         """
-        return _is_browser_started()
+        return BrowserService.is_started()
 
 
 __all__ = ["SeleniumServices"]

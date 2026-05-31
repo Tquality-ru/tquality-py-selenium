@@ -18,15 +18,19 @@ products = factory.from_page(Product, container_css=".product-card")
 """
 from __future__ import annotations
 
-from typing import Any, TypeVar, get_args, get_origin
+from typing import Any, TYPE_CHECKING, TypeVar, get_args, get_origin
 
 from pydantic import BaseModel, Field
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 
 from tquality_selenium.elements.base_element import BaseElement
 from tquality_selenium.elements.by import By
 from tquality_selenium.elements.by_kind import ByKind
 from tquality_selenium.services.pseudo_element import PseudoElement
+
+if TYPE_CHECKING:
+    from tquality_core import Logger
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -37,25 +41,6 @@ _STYLE_KEY = "style"
 _PSEUDO_KEY = "pseudo"
 _RAW_KEY = "raw"
 _ELEMENT_TYPE_KEY = "element_type"
-
-
-def _annotation_is_webelement(annotation: Any) -> bool:
-    if annotation is WebElement:
-        return True
-    if get_origin(annotation) is not None:
-        return any(arg is WebElement for arg in get_args(annotation))
-    return False
-
-
-def _annotation_base_element_type(annotation: Any) -> type[BaseElement] | None:
-    candidates = (
-        list(get_args(annotation)) if get_origin(annotation) is not None
-        else [annotation]
-    )
-    for c in candidates:
-        if isinstance(c, type) and issubclass(c, BaseElement):
-            return c
-    return None
 
 
 class DomField:
@@ -144,13 +129,13 @@ class CollectionFactory:
     """Factory: создает список моделей из коллекции DOM-элементов."""
 
     @property
-    def _driver(self) -> Any:
+    def _driver(self) -> WebDriver:
         from tquality_selenium.container import SeleniumServices
         from tquality_selenium.browser import BrowserService
         return SeleniumServices.get_service(BrowserService).driver
 
     @property
-    def _log(self) -> Any:
+    def _log(self) -> Logger:
         from tquality_core import Logger
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(Logger)
@@ -201,8 +186,9 @@ class CollectionFactory:
                 joined = By.xpath(row_xpath + field_by.to_xpath())
                 item[name] = element_cls(joined, f"{model_name}.{name}[{i}]")
 
-    @staticmethod
+    @classmethod
     def _extract_field_map(
+        cls,
         model: type[BaseModel],
     ) -> dict[str, dict[str, Any]]:
         result: dict[str, dict[str, Any]] = {}
@@ -226,13 +212,36 @@ class CollectionFactory:
             pseudo_value = extra.get(_PSEUDO_KEY)
             if isinstance(pseudo_value, str):
                 entry[_PSEUDO_KEY] = pseudo_value
-            if _annotation_is_webelement(field_info.annotation):
+            if cls._annotation_is_webelement(field_info.annotation):
                 entry[_RAW_KEY] = True
-            element_type = _annotation_base_element_type(field_info.annotation)
+            element_type = cls._annotation_base_element_type(
+                field_info.annotation,
+            )
             if element_type is not None:
                 entry[_ELEMENT_TYPE_KEY] = element_type
             result[name] = entry
         return result
+
+    @staticmethod
+    def _annotation_is_webelement(annotation: Any) -> bool:
+        if annotation is WebElement:
+            return True
+        if get_origin(annotation) is not None:
+            return any(arg is WebElement for arg in get_args(annotation))
+        return False
+
+    @staticmethod
+    def _annotation_base_element_type(
+        annotation: Any,
+    ) -> type[BaseElement] | None:
+        candidates = (
+            list(get_args(annotation)) if get_origin(annotation) is not None
+            else [annotation]
+        )
+        for c in candidates:
+            if isinstance(c, type) and issubclass(c, BaseElement):
+                return c
+        return None
 
     @staticmethod
     def _build_script(

@@ -51,7 +51,9 @@ def test_get_computed_style_reads_real_css_values() -> None:
     try:
         service.open(_STYLED_PAGE)
         target = service.driver.find_element("id", "target")
-        ja = ElementJsActions(find=lambda: target)
+        ja = ElementJsActions(
+            find=lambda: target, driver_getter=lambda: service.driver,
+        )
 
         # Подменяем _driver/_log на классе - DI-контейнер для smoke не нужен.
         with patch.object(

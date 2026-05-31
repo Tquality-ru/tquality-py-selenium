@@ -1,8 +1,6 @@
 """BaseForm для Selenium - расширенная версия с element_factory, title, url."""
 from __future__ import annotations
 
-from typing import Any
-
 from tquality_selenium.browser import BrowserService
 from tquality_selenium.container import SeleniumServices
 from tquality_selenium.elements.base_element import BaseElement
@@ -21,7 +19,7 @@ class BaseForm:
         self._name = name or self.__class__.__name__
 
     @property
-    def _browser(self) -> Any:
+    def _browser(self) -> BrowserService:
         return SeleniumServices.get_service(BrowserService)
 
     @property
