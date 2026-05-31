@@ -20,11 +20,71 @@
 """
 from __future__ import annotations
 
-from enum import Enum
+from enum import Enum, StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from tquality_core import BaseConfig
+
+
+class LogMode(StrEnum):
+    """Когда прикреплять собранный лог к шагу / тесту."""
+
+    NEVER = "never"
+    ON_FAIL = "on_fail"
+    ALWAYS = "always"
+
+
+class LogChannelConfig(BaseModel):
+    """Настройки одного канала логирования (network или js-console)."""
+
+    mode: LogMode = Field(
+        default=LogMode.ON_FAIL,
+        description=(
+            "Когда прикреплять собранный лог к шагу: `never` - никогда, "
+            "`on_fail` - только при падении шага (default), `always` - всегда."
+        ),
+    )
+    filters: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Whitelist regex-паттернов. Если непустой - прикрепляются "
+            "только записи, матчащиеся хотя бы одним паттерном (например "
+            '`["ErrorCode.*400", "Timeout.*Error"]`). Пустой список - без '
+            "whitelist-фильтрации."
+        ),
+    )
+    ignored_patterns: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Blacklist regex-паттернов. Записи, матчащиеся хотя бы "
+            "одним - отбрасываются. Если запись попадает и под "
+            "whitelist (`filters`), и под blacklist одновременно - "
+            "whitelist приоритетнее, запись остаётся."
+        ),
+    )
+    size_limit: int = Field(
+        default=65536,
+        ge=0,
+        description=(
+            "Максимальный размер attachment'а в байтах. Записи, не "
+            "влезающие в лимит, отбрасываются с маркером "
+            "`... [truncated N entries]` в конце."
+        ),
+    )
+
+
+class LogsConfig(BaseModel):
+    """Структура логов BiDi для прикрепления к шагам и тестам."""
+
+    network: LogChannelConfig = Field(
+        default_factory=LogChannelConfig,
+        description="Лог HTTP-запросов/ответов через BiDi `network.*`.",
+    )
+    js: LogChannelConfig = Field(
+        default_factory=LogChannelConfig,
+        description="Лог JS-console-сообщений через BiDi `script.message`.",
+    )
 
 
 class Capabilities(BaseModel):
@@ -110,6 +170,17 @@ class SeleniumConfig(BaseConfig):
     undetected_chrome: BrowserConfig = Field(default_factory=BrowserConfig)
 
     screencast: ScreencastConfig = Field(default_factory=ScreencastConfig)
+
+    logs: LogsConfig = Field(
+        default_factory=LogsConfig,
+        description=(
+            "BiDi-логи браузера, прикрепляемые к шагам и тесту: "
+            "`logs.network` - HTTP-запросы/ответы через `driver.network`, "
+            "`logs.js` - JS-console-сообщения через `driver.script`. "
+            "Каждый канал управляется независимо (`mode` / `filters` / "
+            "`size_limit`)."
+        ),
+    )
 
     attach_page_source_on_failure: bool = Field(
         default=True,

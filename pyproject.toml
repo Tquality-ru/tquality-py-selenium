@@ -37,7 +37,7 @@ dependencies = [
     # `find_upwards`). Также подтягивает 0.1.8-фичи: ElementState /
     # Waiter / ResolvedWaiter / LazyElements / WebDriverScreenshotProvider /
     # WebmScreencastRecorder.
-    "tquality-py-core[screencast]>=0.1.9",
+    "tquality-py-core[screencast]>=0.1.11",
     "selenium>=4.00.0",
     # `Capabilities`, `SeleniumConfig`, `CollectionFactory`-модели и
     # валидаторы используют Pydantic v2 API напрямую (`BaseModel`,

@@ -78,6 +78,66 @@
       "title": "Capabilities",
       "type": "object"
     },
+    "LogChannelConfig": {
+      "description": "Настройки одного канала логирования (network или js-console).",
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/LogMode",
+          "default": "on_fail",
+          "description": "Когда прикреплять собранный лог к шагу: `never` - никогда, `on_fail` - только при падении шага (default), `always` - всегда."
+        },
+        "filters": {
+          "description": "Whitelist regex-паттернов. Если непустой - прикрепляются только записи, матчащиеся хотя бы одним паттерном (например `[\"ErrorCode.*400\", \"Timeout.*Error\"]`). Пустой список - без whitelist-фильтрации.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Filters",
+          "type": "array"
+        },
+        "ignored_patterns": {
+          "description": "Blacklist regex-паттернов. Записи, матчащиеся хотя бы одним - отбрасываются. Если запись попадает и под whitelist (`filters`), и под blacklist одновременно - whitelist приоритетнее, запись остаётся.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Ignored Patterns",
+          "type": "array"
+        },
+        "size_limit": {
+          "default": 65536,
+          "description": "Максимальный размер attachment'а в байтах. Записи, не влезающие в лимит, отбрасываются с маркером `... [truncated N entries]` в конце.",
+          "minimum": 0,
+          "title": "Size Limit",
+          "type": "integer"
+        }
+      },
+      "title": "LogChannelConfig",
+      "type": "object"
+    },
+    "LogMode": {
+      "description": "Когда прикреплять собранный лог к шагу / тесту.",
+      "enum": [
+        "never",
+        "on_fail",
+        "always"
+      ],
+      "title": "LogMode",
+      "type": "string"
+    },
+    "LogsConfig": {
+      "description": "Структура логов BiDi для прикрепления к шагам и тестам.",
+      "properties": {
+        "network": {
+          "$ref": "#/$defs/LogChannelConfig",
+          "description": "Лог HTTP-запросов/ответов через BiDi `network.*`."
+        },
+        "js": {
+          "$ref": "#/$defs/LogChannelConfig",
+          "description": "Лог JS-console-сообщений через BiDi `script.message`."
+        }
+      },
+      "title": "LogsConfig",
+      "type": "object"
+    },
     "ScreencastConfig": {
       "description": "Параметры видеозаписи шагов уровня WITH_SCREENCAST.",
       "properties": {
@@ -165,6 +225,10 @@
     },
     "screencast": {
       "$ref": "#/$defs/ScreencastConfig"
+    },
+    "logs": {
+      "$ref": "#/$defs/LogsConfig",
+      "description": "BiDi-логи браузера, прикрепляемые к шагам и тесту: `logs.network` - HTTP-запросы/ответы через `driver.network`, `logs.js` - JS-console-сообщения через `driver.script`. Каждый канал управляется независимо (`mode` / `filters` / `size_limit`)."
     },
     "attach_page_source_on_failure": {
       "default": true,
