@@ -6,12 +6,15 @@
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 from tquality_core import LazyElements as _CoreLazyElements
 
 from tquality_selenium.elements.base_element import BaseElement
 from tquality_selenium.elements.by import By
+
+if TYPE_CHECKING:
+    from tquality_selenium.browser import BrowserService
 
 
 class LazyElements[E: BaseElement](_CoreLazyElements[E]):
@@ -29,7 +32,7 @@ class LazyElements[E: BaseElement](_CoreLazyElements[E]):
         )
 
     @staticmethod
-    def _resolve_browser() -> Any:
+    def _resolve_browser() -> BrowserService:
         from tquality_selenium.browser import BrowserService
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(BrowserService)
