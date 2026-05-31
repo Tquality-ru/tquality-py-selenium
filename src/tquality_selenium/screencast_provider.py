@@ -23,6 +23,7 @@ import base64
 import logging
 from typing import Any, Callable
 
+from selenium.webdriver.common.bidi.browsing_context import BrowsingContext
 from selenium.webdriver.remote.webdriver import WebDriver
 
 from tquality_core import WebmScreencastRecorder
@@ -73,7 +74,7 @@ class SeleniumScreencastProvider:
         driver = self._driver_resolver()
 
         try:
-            bc: Any = driver.browsing_context
+            bc: BrowsingContext = driver.browsing_context
             b64 = bc.capture_screenshot(driver.current_window_handle)
             if isinstance(b64, str):
                 return base64.b64decode(b64)
@@ -87,7 +88,7 @@ class SeleniumScreencastProvider:
                     exc,
                 )
 
-        cdp: Any = getattr(driver, "execute_cdp_cmd", None)
+        cdp: Callable[..., Any] | None = getattr(driver, "execute_cdp_cmd", None)
         if cdp is not None:
             try:
                 cdp_result = cdp("Page.captureScreenshot", {"format": "png"})
