@@ -21,12 +21,15 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Any, Iterator, TYPE_CHECKING
+from typing import Iterator, TYPE_CHECKING
 
 from selenium.webdriver.common.alert import Alert
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 
 if TYPE_CHECKING:
+    from tquality_core import Logger
+
     from tquality_selenium.services.context_waiter import ContextWaiter
 
 
@@ -38,13 +41,13 @@ class ContextManager:
     """Доступ к окнам/фреймам/алертам + переключение между ними."""
 
     @property
-    def _driver(self) -> Any:
+    def _driver(self) -> WebDriver:
         from tquality_selenium.browser import BrowserService
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(BrowserService).driver
 
     @property
-    def _log(self) -> Any:
+    def _log(self) -> Logger:
         from tquality_core import Logger
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(Logger)
