@@ -28,6 +28,9 @@ from tquality_selenium.pages import BaseForm
 from tquality_selenium.screencast_provider import SeleniumScreencastProvider
 from tquality_selenium.screenshot_provider import SeleniumScreenshotProvider
 from tquality_selenium.services import (
+    Actions,
+    BiDiBrowserActions,
+    BiDiElementActions,
     CollectionFactory,
     ContextManager,
     ContextWaiter,
@@ -57,8 +60,11 @@ __all__ = [
     "StringUtils",
     "step",
     # Selenium-specific
+    "Actions",
     "BaseElement",
     "BaseForm",
+    "BiDiBrowserActions",
+    "BiDiElementActions",
     "BrowserService",
     "BrowserType",
     "Button",

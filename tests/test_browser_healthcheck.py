@@ -26,7 +26,6 @@ _HEALTHCHECK_URL = (
     "</head><body>ok</body></html>"
 )
 
-
 @pytest.mark.parametrize(
     ("browser", "headless", "capabilities"),
     [
