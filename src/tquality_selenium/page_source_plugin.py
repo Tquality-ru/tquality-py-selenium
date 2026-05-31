@@ -23,16 +23,21 @@
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Generator, TYPE_CHECKING
 
 import allure
 import pytest
+
+from selenium.webdriver.remote.webdriver import WebDriver
+
+if TYPE_CHECKING:
+    from tquality_selenium.config import SeleniumConfig
 
 
 _ATTACHMENT_NAME = "Page source"
 
 
-def _try_get_config() -> Any:
+def _try_get_config() -> SeleniumConfig | None:
     """Вернуть активный SeleniumConfig либо None, если контейнер не настроен."""
     try:
         from tquality_selenium.config import SeleniumConfig
@@ -45,7 +50,7 @@ def _try_get_config() -> Any:
         return None
 
 
-def _try_get_driver() -> Any:
+def _try_get_driver() -> WebDriver | None:
     """Вернуть активный WebDriver либо None, если браузер не запущен."""
     try:
         from tquality_selenium.container import SeleniumServices
@@ -59,7 +64,9 @@ def _try_get_driver() -> Any:
         return None
 
 
-def _capture_page_source(driver: Any) -> tuple[str, Any]:
+def _capture_page_source(
+    driver: WebDriver,
+) -> tuple[str, allure.attachment_type]:
     """Снять page_source. На сбое - вернуть диагностический stub."""
     try:
         source: str = driver.page_source
@@ -75,7 +82,7 @@ def _capture_page_source(driver: Any) -> tuple[str, Any]:
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(
     item: pytest.Item, call: pytest.CallInfo[None],
-) -> Any:
+) -> Generator[None, Any, None]:
     """Прикрепить page_source к allure при падении теста."""
     outcome = yield
     report = outcome.get_result()
