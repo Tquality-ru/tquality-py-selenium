@@ -134,6 +134,15 @@ class BrowserConfig(BaseModel):
     window_width: int = Field(default=1920, ge=320, le=7680)
     window_height: int = Field(default=1080, ge=240, le=4320)
     page_load_timeout: float = Field(default=30.0, ge=1.0)
+    arguments: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Дополнительные аргументы командной строки браузера, "
+            "добавляемые к options через `add_argument` "
+            '(например `["--lang=ru", "--disable-gpu"]`). '
+            "Safari их игнорирует."
+        ),
+    )
 
 
 class ScreencastConfig(BaseModel):

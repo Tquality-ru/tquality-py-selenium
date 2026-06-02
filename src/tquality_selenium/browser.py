@@ -92,6 +92,7 @@ class BrowserService:
             ff_opts = FirefoxOptions()
             if active.headless:
                 ff_opts.add_argument("--headless")
+            self._apply_arguments(ff_opts, active.arguments)
             if bidi:
                 self._enable_bidi(ff_opts)
             driver = webdriver.Firefox(options=ff_opts)
@@ -99,6 +100,7 @@ class BrowserService:
             edge_opts = EdgeOptions()
             if active.headless:
                 edge_opts.add_argument("--headless=new")
+            self._apply_arguments(edge_opts, active.arguments)
             self._apply_linux_docker_chromium_flags(edge_opts)
             if bidi:
                 self._enable_bidi(edge_opts)
@@ -125,6 +127,7 @@ class BrowserService:
                 uc_opts.binary_location = chrome_binary
             if active.headless:
                 uc_opts.add_argument("--headless=new")
+            self._apply_arguments(uc_opts, active.arguments)
             self._apply_linux_docker_chromium_flags(uc_opts)
             if bidi:
                 self._enable_bidi(uc_opts)
@@ -152,6 +155,7 @@ class BrowserService:
             ch_opts = ChromeOptions()
             if active.headless:
                 ch_opts.add_argument("--headless=new")
+            self._apply_arguments(ch_opts, active.arguments)
             self._apply_linux_docker_chromium_flags(ch_opts)
             if bidi:
                 self._enable_bidi(ch_opts)
@@ -190,6 +194,8 @@ class BrowserService:
                 opts.add_argument("--headless=new")
         else:
             raise ValueError(f"Неподдерживаемый тип браузера: {browser!r}")
+        if browser is not BrowserType.SAFARI:
+            self._apply_arguments(opts, active.arguments)
         if cfg.bidi:
             self._enable_bidi(opts)
         for cap_key, cap_value in cfg.capabilities.model_dump(exclude_none=True).items():
@@ -361,6 +367,12 @@ class BrowserService:
         url to connect to from capabilities`.
         """
         opts.set_capability("webSocketUrl", True)
+
+    @staticmethod
+    def _apply_arguments(opts: ArgOptions, arguments: list[str]) -> None:
+        """Добавить пользовательские CLI-аргументы из конфига к options."""
+        for arg in arguments:
+            opts.add_argument(arg)
 
     @staticmethod
     def _apply_linux_docker_chromium_flags(opts: ArgOptions) -> None:

@@ -27,6 +27,14 @@
           "minimum": 1.0,
           "title": "Page Load Timeout",
           "type": "number"
+        },
+        "arguments": {
+          "description": "Дополнительные аргументы командной строки браузера, добавляемые к options через `add_argument` (например `[\"--lang=ru\", \"--disable-gpu\"]`). Safari их игнорирует.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Arguments",
+          "type": "array"
         }
       },
       "title": "BrowserConfig",

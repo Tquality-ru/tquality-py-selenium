@@ -3,6 +3,16 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
+## [0.1.13] - 2026-06-02
+
+### Добавлено
+
+- **`BrowserConfig.arguments: list[str]`** - произвольные CLI-аргументы браузера, добавляемые к `options` через `add_argument` (например `["--lang=ru", "--disable-gpu"]`). Применяются в локальной и Remote-сессиях для Chrome / Firefox / Edge / undetected-chrome; Safari их игнорирует (как и `headless`). Задаются per-browser, поэтому у каждого браузера в конфиге свой набор.
+
+### Изменено
+
+- **`schema/config.schema.json` перегенерирована в диалекте JSON Schema draft-07** (был draft 2020-12) - убирает ложные ошибки валидации схемы в IDE (JetBrains) на не-boolean `default`-значениях, вызванные багами резолва `$dynamicRef` в meta-схеме 2020-12. Диалект задаётся в ядре (`tquality_core.schema.generate_schema`); требует `tquality-py-core` с этим изменением для совпадения перегенерированной схемы с коммиченной.
+
 ## [0.1.12] - 2026-05-31
 
 ### Добавлено
