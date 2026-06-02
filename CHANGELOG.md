@@ -3,6 +3,12 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
+## [0.1.14] - 2026-06-02
+
+### Исправлено
+
+- **Пин `selenium>=4.44.0`** (был `>=4.00.0`). BiDi-обёртки из 0.1.12 (`bidi_actions.py`) импортируют `BoxClipRectangle` из `selenium.webdriver.common.bidi.browsing_context`, появившийся только в selenium 4.44.0. При слишком широком нижнем пине зависимости оставались на 4.43.0 и падали на `ImportError` при загрузке pytest-плагина. Поднятый floor заставляет резолвер подтянуть selenium с нужным символом.
+
 ## [0.1.13] - 2026-06-02
 
 ### Добавлено
