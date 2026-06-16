@@ -18,9 +18,14 @@ button.wait.until(predicate, raise_on_timeout=MyError, message="...",
 """
 from __future__ import annotations
 
-from typing import Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.expected_conditions import (
+    element_to_be_clickable,
+    invisibility_of_element_located,
+    presence_of_element_located,
+    visibility_of_element_located,
+)
 
 if TYPE_CHECKING:
     from tquality_selenium.elements.base_element import BaseElement
@@ -33,8 +38,9 @@ class ElementWaiter[E: "BaseElement"]:
 
     Параметры (одинаковые у всех методов):
 
-    - `timeout` (сек) - default из `config.default_timeout`.
-    - `poll_interval` (сек) - пауза между опросами; default - 0.5s.
+    - `timeout` (сек) - default из `config.waiter.timeout`.
+    - `poll_interval` (сек) - пауза между опросами; default из
+      `config.waiter.poll_interval`.
     - `raise_on_timeout` - `False` (default), `True`, либо класс исключения.
     - `message` - переопределяет авто-сгенерированный текст; попадает
       в лог и в текст исключения.
@@ -77,7 +83,7 @@ class ElementWaiter[E: "BaseElement"]:
         message: str = "",
     ) -> bool:
         return self._driver_waiter.until(
-            EC.visibility_of_element_located(self._element.by),
+            visibility_of_element_located(self._element.by),
             timeout=timeout,
             poll_interval=poll_interval,
             raise_on_timeout=raise_on_timeout,
@@ -93,7 +99,7 @@ class ElementWaiter[E: "BaseElement"]:
         message: str = "",
     ) -> bool:
         return self._driver_waiter.until(
-            EC.element_to_be_clickable(self._element.by),
+            element_to_be_clickable(self._element.by),
             timeout=timeout,
             poll_interval=poll_interval,
             raise_on_timeout=raise_on_timeout,
@@ -109,7 +115,7 @@ class ElementWaiter[E: "BaseElement"]:
         message: str = "",
     ) -> bool:
         return self._driver_waiter.until(
-            EC.presence_of_element_located(self._element.by),
+            presence_of_element_located(self._element.by),
             timeout=timeout,
             poll_interval=poll_interval,
             raise_on_timeout=raise_on_timeout,
@@ -125,7 +131,7 @@ class ElementWaiter[E: "BaseElement"]:
         message: str = "",
     ) -> bool:
         return self._driver_waiter.until(
-            EC.invisibility_of_element_located(self._element.by),
+            invisibility_of_element_located(self._element.by),
             timeout=timeout,
             poll_interval=poll_interval,
             raise_on_timeout=raise_on_timeout,

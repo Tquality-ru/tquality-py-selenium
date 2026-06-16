@@ -59,19 +59,19 @@ from __future__ import annotations
 
 import contextvars
 import inspect
-import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator, TypeVar
 
 from dependency_injector import containers, providers
-from selenium.webdriver.remote.webdriver import WebDriver
-
-from tquality_core import Logger, set_logger_resolver
-from tquality_core.per_test_files import (
-    cwd as _per_test_cwd,
-    register_per_test_rebuilder,
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    StaleElementReferenceException,
+    TimeoutException,
 )
+from selenium.webdriver.remote.webdriver import WebDriver
+from tquality_core import Logger, PathUtils, set_logger_resolver
+from tquality_core.plugins.per_test_files import register_per_test_rebuilder
 
 from tquality_selenium.browser import BrowserService
 from tquality_selenium.config import SeleniumConfig
@@ -82,13 +82,6 @@ from tquality_selenium.services.context_manager import ContextManager
 from tquality_selenium.services.driver_waiter import DriverWaiter
 from tquality_selenium.services.element_factory import ElementFactory
 from tquality_selenium.services.waiter import Waiter
-
-
-from selenium.common.exceptions import (
-    NoSuchElementException,
-    StaleElementReferenceException,
-    TimeoutException,
-)
 
 
 def _resolve_driver_from_active() -> WebDriver:
@@ -122,17 +115,6 @@ _active_services_ctx: contextvars.ContextVar[type[SeleniumServices] | None] = (
 def _resolve_active() -> type[SeleniumServices] | None:
     """ContextVar override → process-wide default → None."""
     return _active_services_ctx.get() or _default_services
-
-
-@contextmanager
-def _cwd(path: Path) -> Iterator[None]:
-    """Временно перейти в `path`; по выходу из контекста - обратно."""
-    previous = os.getcwd()
-    os.chdir(path)
-    try:
-        yield
-    finally:
-        os.chdir(previous)
 
 
 class SeleniumServices(containers.DeclarativeContainer):
@@ -213,10 +195,10 @@ class SeleniumServices(containers.DeclarativeContainer):
         else:
             config_dir = Path(config_dir).resolve()
 
-        # Кешируем singleton с правильно разрешенным config.json.
-        # pydantic-settings ходит от os.getcwd(), поэтому временно
-        # подменяем его - именно для момента первой инициализации.
-        with _cwd(config_dir):
+        # Кешируем singleton с правильно разрешенным config.json5.
+        # `BaseConfig` ходит от `PathUtils.config_search_dir()`, поэтому
+        # на момент первой инициализации смещаем её на `config_dir`.
+        with PathUtils.override_config_search_dir(config_dir):
             cls.config()
 
         global _default_services
@@ -228,12 +210,12 @@ class SeleniumServices(containers.DeclarativeContainer):
     def _rebuild_configs_for_test(cls, test_dir: Path) -> Any:
         """Перестроить `config` под директорию теста.
 
-        `BaseConfig` уже умеет цепочку `config.json5` от CWD к корню
-        workspace - chdir'ив в `test_dir`, мы получаем
+        `BaseConfig` уже умеет цепочку `config.json5` от стартовой директории
+        к границе проекта - сместив её на `test_dir`, мы получаем
         `tests/<suite>/config.json5` поверх корневого. Возвращает
         teardown-колбэк, сбрасывающий override.
         """
-        with _per_test_cwd(test_dir):
+        with PathUtils.override_config_search_dir(test_dir):
             new_config = SeleniumConfig()
         cls.config.override(new_config)
 
