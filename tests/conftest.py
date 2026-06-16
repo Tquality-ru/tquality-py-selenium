@@ -1,12 +1,29 @@
 """Общие фикстуры для тестов `tquality_selenium`."""
 from __future__ import annotations
 
+from collections.abc import Iterator
+from pathlib import Path
 from typing import Any, Callable
 from unittest.mock import MagicMock
 
 import pytest
+from tquality_core import PathUtils
 
 from tquality_selenium.services.collection_factory import CollectionFactory
+
+
+@pytest.fixture
+def search_dir() -> Iterator[Callable[[Path], None]]:
+    """Параллельно-безопасно нацеливает разрешение конфигов на директорию
+    (через `ContextVar`), в отличие от глобального `monkeypatch`/`chdir`."""
+    resets: list[Callable[[], None]] = []
+
+    def _set(path: Path) -> None:
+        resets.append(PathUtils.use_config_search_dir(path))
+
+    yield _set
+    for reset in reversed(resets):
+        reset()
 
 
 @pytest.fixture

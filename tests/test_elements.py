@@ -11,11 +11,11 @@ from tquality_selenium import (
     Button,
     By,
     CheckBox,
-    StyleProperty,
     ElementFactory,
     Input,
     Label,
     LazyElements,
+    StyleProperty,
 )
 
 
@@ -606,24 +606,24 @@ def test_element_wait_property_returns_bound_element_waiter() -> None:
     from unittest.mock import MagicMock, patch
 
     from tquality_selenium.container import SeleniumServices
-    from tquality_selenium.services.element_waiter import ElementWaiter as EW
+    from tquality_selenium.services.element_waiter import ElementWaiter
 
     btn = Button(By.id("submit"), "Submit")
     fake_dw = MagicMock()
     with patch.object(SeleniumServices, "get_service", return_value=fake_dw):
         w = btn.wait
 
-    assert isinstance(w, EW)
+    assert isinstance(w, ElementWaiter)
     assert w._element is btn
     assert w._driver_waiter is fake_dw
 
 
 def test_until_visible_delegates_to_waiter_and_returns_bool() -> None:
-    from tquality_selenium.services.element_waiter import ElementWaiter as EW
+    from tquality_selenium.services.element_waiter import ElementWaiter
 
     btn = Button(By.id("submit"), "Submit")
     fake = _FakeDriverWaiter(return_value=True)
-    result = EW(fake, btn).until_visible(timeout=2.5)
+    result = ElementWaiter(fake, btn).until_visible(timeout=2.5)
 
     assert result is True
     assert len(fake.calls) == 1
@@ -634,22 +634,22 @@ def test_until_visible_delegates_to_waiter_and_returns_bool() -> None:
 
 
 def test_until_clickable_delegates_and_returns_bool() -> None:
-    from tquality_selenium.services.element_waiter import ElementWaiter as EW
+    from tquality_selenium.services.element_waiter import ElementWaiter
 
     btn = Button(By.id("submit"), "Submit")
     fake = _FakeDriverWaiter(return_value=False)
-    result = EW(fake, btn).until_clickable()
+    result = ElementWaiter(fake, btn).until_clickable()
 
     assert result is False
     assert "to be clickable" in fake.calls[0]["message"]
 
 
 def test_until_invisible_delegates_and_returns_bool() -> None:
-    from tquality_selenium.services.element_waiter import ElementWaiter as EW
+    from tquality_selenium.services.element_waiter import ElementWaiter
 
     el = BaseElement(By.css_selector(".banner"), "Cookie banner")
     fake = _FakeDriverWaiter(return_value=True)
-    result = EW(fake, el).until_invisible(timeout=1.0)
+    result = ElementWaiter(fake, el).until_invisible(timeout=1.0)
 
     assert result is True
     assert "to be invisible" in fake.calls[0]["message"]
@@ -657,11 +657,11 @@ def test_until_invisible_delegates_and_returns_bool() -> None:
 
 
 def test_until_present_delegates_and_returns_bool() -> None:
-    from tquality_selenium.services.element_waiter import ElementWaiter as EW
+    from tquality_selenium.services.element_waiter import ElementWaiter
 
     el = BaseElement(By.id("x"), "X")
     fake = _FakeDriverWaiter(return_value=True)
-    result = EW(fake, el).until_present()
+    result = ElementWaiter(fake, el).until_present()
 
     assert result is True
     assert "to be present" in fake.calls[0]["message"]
@@ -671,11 +671,11 @@ def test_until_not_present_invokes_find_elements_in_predicate() -> None:
     """Predicate `lambda d: not d.find_elements(*by)` - распаковывается локатор."""
     from unittest.mock import MagicMock
 
-    from tquality_selenium.services.element_waiter import ElementWaiter as EW
+    from tquality_selenium.services.element_waiter import ElementWaiter
 
     el = BaseElement(By.css_selector(".gone"), "Gone")
     fake = _FakeDriverWaiter(return_value=True)
-    result = EW(fake, el).until_not_present()
+    result = ElementWaiter(fake, el).until_not_present()
 
     assert result is True
     assert "to be not present" in fake.calls[0]["message"]
@@ -689,7 +689,7 @@ def test_until_not_present_invokes_find_elements_in_predicate() -> None:
 
 def test_wait_until_passes_element_into_user_condition() -> None:
     """`wait.until(cond, ...)` - cond получает сам элемент, не WebDriver."""
-    from tquality_selenium.services.element_waiter import ElementWaiter as EW
+    from tquality_selenium.services.element_waiter import ElementWaiter
 
     el = BaseElement(By.id("x"), "X")
     fake = _FakeDriverWaiter(return_value=True)
@@ -700,7 +700,7 @@ def test_wait_until_passes_element_into_user_condition() -> None:
         captured.append(e)
         return True
 
-    result = EW(fake, el).until(user_cond, timeout=0.5, message="be ready")
+    result = ElementWaiter(fake, el).until(user_cond, timeout=0.5, message="be ready")
 
     assert result is True
     assert len(fake.calls) == 1
@@ -712,11 +712,11 @@ def test_wait_until_passes_element_into_user_condition() -> None:
 
 
 def test_wait_until_default_message_when_omitted() -> None:
-    from tquality_selenium.services.element_waiter import ElementWaiter as EW
+    from tquality_selenium.services.element_waiter import ElementWaiter
 
     el = BaseElement(By.id("x"), "X")
     fake = _FakeDriverWaiter()
-    EW(fake, el).until(lambda _e: True)
+    ElementWaiter(fake, el).until(lambda _e: True)
 
     assert "meet custom condition" in fake.calls[0]["message"]
 
@@ -724,7 +724,7 @@ def test_wait_until_default_message_when_omitted() -> None:
 def test_wait_for_computed_style_builds_message_and_uses_js_actions() -> None:
     from unittest.mock import MagicMock, PropertyMock, patch
 
-    from tquality_selenium.services.element_waiter import ElementWaiter as EW
+    from tquality_selenium.services.element_waiter import ElementWaiter
 
     btn = Button(By.id("submit"), "Submit")
     fake = _FakeDriverWaiter(return_value=True)
@@ -733,7 +733,7 @@ def test_wait_for_computed_style_builds_message_and_uses_js_actions() -> None:
     ja.get_computed_style.return_value = "block"
     with patch.object(BaseElement, "js_actions", new_callable=PropertyMock) as prop:
         prop.return_value = ja
-        result = EW(fake, btn).for_computed_style(
+        result = ElementWaiter(fake, btn).for_computed_style(
             StyleProperty.DISPLAY, "block", timeout=3.0,
         )
         assert fake.calls[0]["condition"](object()) is True
@@ -748,11 +748,11 @@ def test_wait_for_computed_style_builds_message_and_uses_js_actions() -> None:
 
 def test_raise_on_timeout_kwarg_propagates() -> None:
     """ElementWaiter передаёт raise_on_timeout / poll_interval в DriverWaiter."""
-    from tquality_selenium.services.element_waiter import ElementWaiter as EW
+    from tquality_selenium.services.element_waiter import ElementWaiter
 
     btn = Button(By.id("submit"), "Submit")
     fake = _FakeDriverWaiter()
-    EW(fake, btn).until_visible(
+    ElementWaiter(fake, btn).until_visible(
         timeout=1.0, poll_interval=0.05, raise_on_timeout=True,
     )
     call = fake.calls[0]

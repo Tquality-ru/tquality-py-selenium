@@ -225,7 +225,7 @@ def test_annotated_chain_runs_before_then_after(
     Цепочка: сырая строка -> `_clean_price` -> Pydantic int-coercion ->
     `_must_be_positive`. Падение на любом этапе превращается в `ValidationError`.
     """
-    SanitizedPositive = Annotated[
+    type SanitizedPositive = Annotated[
         int,
         BeforeValidator(_clean_price),
         AfterValidator(_must_be_positive),
@@ -252,7 +252,7 @@ def test_annotated_before_validator_handles_decimal_separator(
             return v.strip().replace(",", ".")
         return v
 
-    LocaleDecimal = Annotated[Decimal, BeforeValidator(_comma_to_dot)]
+    type LocaleDecimal = Annotated[Decimal, BeforeValidator(_comma_to_dot)]
 
     class Product(BaseModel):
         rating: LocaleDecimal = DomField.css(".rating")
@@ -412,7 +412,7 @@ def test_style_value_flows_through_before_validator(
     def _is_visible(v: Any) -> bool:
         return v not in ("", "none", "hidden")
 
-    Visible = Annotated[bool, BeforeValidator(_is_visible)]
+    type Visible = Annotated[bool, BeforeValidator(_is_visible)]
 
     class Card(BaseModel):
         visible: Visible = DomField.css_style(".badge", "display")

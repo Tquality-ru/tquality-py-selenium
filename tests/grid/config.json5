@@ -1,0 +1,6 @@
+{
+    // Selenium Grid hub для browser-smoke (тот же grid, что у appium
+    // grid-тестов в tquality-py-appium/tests_grid). Локальный дефолт -
+    // глобально перебивается переменной окружения TEST_REMOTE_URL.
+    "remote_url": "http://10.112.11.160:4444"
+}

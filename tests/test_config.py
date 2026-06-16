@@ -10,9 +10,8 @@ from __future__ import annotations
 import subprocess
 import sys
 import textwrap
+from collections.abc import Callable
 from pathlib import Path
-
-import pytest
 
 from tquality_selenium import BrowserType, SeleniumConfig
 from tquality_selenium.config import BrowserConfig, ScreencastConfig
@@ -37,13 +36,14 @@ def _assert_subprocess_ok(tmp_path: Path, body: str) -> None:
         )
 
 
-def test_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
+def test_defaults(tmp_path: Path, search_dir: Callable[[Path], None]) -> None:
+    search_dir(tmp_path)
     cfg = SeleniumConfig()
     assert cfg.browser is BrowserType.CHROME
     # Поля из ядра
     assert cfg.base_url == "http://localhost"
-    assert cfg.default_timeout == 10.0
+    assert cfg.waiter.timeout == 10.0
+    assert cfg.waiter.poll_interval == 0.5
     # Каждый per-browser блок присутствует с дефолтами
     for blk in (
         cfg.chrome, cfg.firefox, cfg.edge, cfg.safari, cfg.undetected_chrome,
@@ -58,9 +58,9 @@ def test_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_active_browser_follows_selection(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, search_dir: Callable[[Path], None],
 ) -> None:
-    monkeypatch.chdir(tmp_path)
+    search_dir(tmp_path)
     cfg = SeleniumConfig(
         browser=BrowserType.UNDETECTED_CHROME,
         undetected_chrome=BrowserConfig(headless=False, window_width=1280),
@@ -72,11 +72,11 @@ def test_active_browser_follows_selection(
 
 
 def test_all_browser_blocks_live_side_by_side(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, search_dir: Callable[[Path], None],
 ) -> None:
     """Настройки всех браузеров должны сосуществовать - переключение
     выбора браузера не должно требовать переписывания остальных блоков."""
-    monkeypatch.chdir(tmp_path)
+    search_dir(tmp_path)
     cfg = SeleniumConfig(
         browser=BrowserType.CHROME,
         chrome=BrowserConfig(headless=True),
@@ -107,9 +107,9 @@ def test_browser_from_env(tmp_path: Path) -> None:
 
 
 def test_attach_page_source_on_failure_default(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, search_dir: Callable[[Path], None],
 ) -> None:
-    monkeypatch.chdir(tmp_path)
+    search_dir(tmp_path)
     cfg = SeleniumConfig()
     assert cfg.attach_page_source_on_failure is True
 

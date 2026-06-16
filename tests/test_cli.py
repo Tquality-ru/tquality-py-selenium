@@ -21,7 +21,7 @@ def test_init_creates_config_with_core_and_selenium_defaults(tmp_path: Path) -> 
     assert data["$schema"] == SELENIUM_SCHEMA_URL
     # Поля ядра
     assert data["base_url"] == "http://localhost"
-    assert data["default_timeout"] == 10.0
+    assert data["waiter"] == {"timeout": 10.0, "poll_interval": 0.5}
     assert data["log_dir"] == "logs"
     assert data["highlight_elements"] is False
     # Selenium-специфичные поля - per-browser блоки + selector + screencast

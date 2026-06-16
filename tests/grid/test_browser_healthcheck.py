@@ -19,6 +19,7 @@ from __future__ import annotations
 import pytest
 
 from tquality_selenium import BrowserService, BrowserType, Capabilities, SeleniumConfig
+from tquality_selenium.browser import BrowserNotSupportedError
 from tquality_selenium.config import BrowserConfig
 
 _HEALTHCHECK_URL = (
@@ -31,60 +32,60 @@ _HEALTHCHECK_URL = (
     [
         pytest.param(
             BrowserType.CHROME, True,
-            Capabilities(platformName="mac", browserVersion="stable"),
+            Capabilities(platform_name="mac", browser_version="stable"),
             id="chrome-mac",
             marks=[pytest.mark.chrome, pytest.mark.macos],
         ),
         pytest.param(
             BrowserType.CHROME, True,
-            Capabilities(platformName="linux", browserVersion="stable"),
+            Capabilities(platform_name="linux", browser_version="stable"),
             id="chrome-linux",
             marks=[pytest.mark.chrome, pytest.mark.linux],
         ),
         pytest.param(
             BrowserType.CHROME, True,
-            Capabilities(platformName="windows", browserVersion="stable"),
+            Capabilities(platform_name="windows", browser_version="stable"),
             id="chrome-windows",
             marks=[pytest.mark.chrome, pytest.mark.windows],
         ),
         pytest.param(
-            BrowserType.FIREFOX, True, Capabilities(platformName="mac"),
+            BrowserType.FIREFOX, True, Capabilities(platform_name="mac"),
             id="firefox-mac",
             marks=[pytest.mark.firefox, pytest.mark.macos],
         ),
         pytest.param(
-            BrowserType.FIREFOX, True, Capabilities(platformName="linux"),
+            BrowserType.FIREFOX, True, Capabilities(platform_name="linux"),
             id="firefox-linux",
             marks=[pytest.mark.firefox, pytest.mark.linux],
         ),
         pytest.param(
-            BrowserType.FIREFOX, True, Capabilities(platformName="windows"),
+            BrowserType.FIREFOX, True, Capabilities(platform_name="windows"),
             id="firefox-windows",
             marks=[pytest.mark.firefox, pytest.mark.windows],
         ),
         pytest.param(
-            BrowserType.EDGE, True, Capabilities(platformName="mac"),
+            BrowserType.EDGE, True, Capabilities(platform_name="mac"),
             id="edge-mac",
             marks=[pytest.mark.edge, pytest.mark.macos],
         ),
         pytest.param(
-            BrowserType.EDGE, True, Capabilities(platformName="linux"),
+            BrowserType.EDGE, True, Capabilities(platform_name="linux"),
             id="edge-linux",
             marks=[pytest.mark.edge, pytest.mark.linux],
         ),
         pytest.param(
-            BrowserType.EDGE, True, Capabilities(platformName="windows"),
+            BrowserType.EDGE, True, Capabilities(platform_name="windows"),
             id="edge-windows",
             marks=[pytest.mark.edge, pytest.mark.windows],
         ),
         pytest.param(
-            BrowserType.SAFARI, False, Capabilities(platformName="mac"),
+            BrowserType.SAFARI, False, Capabilities(platform_name="mac"),
             id="safari-mac",
             marks=[pytest.mark.safari, pytest.mark.macos],
         ),
         pytest.param(
             BrowserType.UNDETECTED_CHROME, True,
-            Capabilities(platformName="windows", browserVersion="undetected"),
+            Capabilities(platform_name="windows", browser_version="undetected"),
             id="undetected-windows",
             marks=[pytest.mark.undetected, pytest.mark.windows],
         ),
@@ -101,7 +102,12 @@ def test_browsers_smoke(
         capabilities=capabilities,
         **{browser.value.replace("-", "_"): block},  # type: ignore[arg-type]
     )
-    service = BrowserService(cfg)
+    try:
+        service = BrowserService(cfg)
+    except BrowserNotSupportedError as exc:
+        # Локальный прогон: браузер несовместим с текущей ОС. На remote/grid
+        # этот guard не срабатывает (там ОС определяется нодой), и кейс запускается.
+        pytest.skip(str(exc))
     try:
         service.open(_HEALTHCHECK_URL)
         assert "healthcheck" in service.driver.title
