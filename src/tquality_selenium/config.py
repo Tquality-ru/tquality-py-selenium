@@ -23,7 +23,6 @@ from __future__ import annotations
 from enum import Enum, StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
-
 from tquality_core import BaseConfig
 
 
@@ -93,18 +92,22 @@ class Capabilities(BaseModel):
     и применяются как `set_capability(key, value)` без потерь.
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(
+        extra="allow", populate_by_name=True, serialize_by_alias=True,
+    )
 
-    platformName: str | None = Field(
+    platform_name: str | None = Field(
         default=None,
+        alias="platformName",
         description=(
             "Целевая ОС: `mac` / `linux` / `windows` / `android` / `ios`. "
             "Selenium Grid использует её для роутинга в node с подходящим "
             "stereotype. None - оставить на усмотрение Grid."
         ),
     )
-    browserVersion: str | None = Field(
+    browser_version: str | None = Field(
         default=None,
+        alias="browserVersion",
         description=(
             "Версия или CfT-канал: `149.0.7827.54` / `stable` / `beta` / "
             "`dev`. Канальные значения заставляют Selenium Manager на Node "
