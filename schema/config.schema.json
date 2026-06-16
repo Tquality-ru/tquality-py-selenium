@@ -180,6 +180,27 @@
       },
       "title": "ScreencastConfig",
       "type": "object"
+    },
+    "WaiterConfig": {
+      "description": "Настройки explicit-waiter: таймаут ожидания и интервал опроса.",
+      "properties": {
+        "timeout": {
+          "default": 10.0,
+          "description": "Таймаут по умолчанию для explicit wait операций с элементами (сек). Должен быть положительным.",
+          "exclusiveMinimum": 0,
+          "title": "Timeout",
+          "type": "number"
+        },
+        "poll_interval": {
+          "default": 0.5,
+          "description": "Пауза между опросами условия в explicit wait (сек). Должна быть положительной.",
+          "exclusiveMinimum": 0,
+          "title": "Poll Interval",
+          "type": "number"
+        }
+      },
+      "title": "WaiterConfig",
+      "type": "object"
     }
   },
   "description": "Конфигурация для Selenium-тестов.\n\nСтруктурирована по логическим блокам: per-browser и feature-specific.\nЭто даёт возможность заранее описать все браузеры в одном конфиге\nи переключаться между ними только через поле `browser`, без\nпереписывания остальной секции.",
@@ -191,12 +212,9 @@
       "title": "Base Url",
       "type": "string"
     },
-    "default_timeout": {
-      "default": 10.0,
-      "description": "Таймаут по умолчанию для explicit wait операций с элементами (сек). Должен быть положительным.",
-      "exclusiveMinimum": 0,
-      "title": "Default Timeout",
-      "type": "number"
+    "waiter": {
+      "$ref": "#/$defs/WaiterConfig",
+      "description": "Настройки explicit-waiter: таймаут ожидания (`timeout`) и интервал опроса условия (`poll_interval`)."
     },
     "log_dir": {
       "default": "logs",
@@ -270,6 +288,6 @@
   },
   "title": "SeleniumConfig",
   "type": "object",
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://cdn.jsdelivr.net/gh/Tquality-ru/tquality-py-selenium@master/schema/config.schema.json"
 }
