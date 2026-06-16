@@ -10,7 +10,6 @@ from __future__ import annotations
 from typing import Callable
 
 from selenium.webdriver.remote.webdriver import WebDriver
-
 from tquality_core import ResolvedWaiter, Waiter
 
 

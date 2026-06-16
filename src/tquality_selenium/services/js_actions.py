@@ -11,7 +11,7 @@ callable-резолвер элемента и выполняет действи�
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Iterator
 
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
@@ -21,6 +21,7 @@ from tquality_selenium.services.style_property import StyleProperty
 
 if TYPE_CHECKING:
     from tquality_core import Logger
+
     from tquality_selenium.config import SeleniumConfig
 
 __all__ = [
@@ -48,6 +49,7 @@ class JsActions:
     @property
     def _log(self) -> Logger:
         from tquality_core import Logger
+
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(Logger)
 
@@ -89,6 +91,7 @@ class ElementJsActions:
     @property
     def _log(self) -> Logger:
         from tquality_core import Logger
+
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(Logger)
 

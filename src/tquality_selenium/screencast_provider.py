@@ -25,7 +25,6 @@ from typing import Any, Callable
 
 from selenium.webdriver.common.bidi.browsing_context import BrowsingContext
 from selenium.webdriver.remote.webdriver import WebDriver
-
 from tquality_core import WebmScreencastRecorder
 from tquality_core.services.webm_screencast import MIME_TYPE as _WEBM_MIME
 

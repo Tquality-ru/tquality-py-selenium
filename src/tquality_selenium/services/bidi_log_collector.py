@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re
 import time
-from typing import Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
     from tquality_core import Logger, Step

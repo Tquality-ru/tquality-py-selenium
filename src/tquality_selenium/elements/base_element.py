@@ -11,11 +11,10 @@ root `SeleniumServices`, настроенный в `conftest.py` через `You
 """
 from __future__ import annotations
 
-from typing import Any, Self, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Self
 
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.remote.webelement import WebElement
-
 from tquality_core import ElementState, StatePredicate, StateSpec
 
 from tquality_selenium.elements.by import By
@@ -24,8 +23,8 @@ from tquality_selenium.elements.geometry import (
     ElementRect,
     ElementSize,
 )
-from tquality_selenium.services.element_waiter import ElementWaiter
 from tquality_selenium.services.bidi_actions import BiDiElementActions
+from tquality_selenium.services.element_waiter import ElementWaiter
 from tquality_selenium.services.js_actions import ElementJsActions
 
 if TYPE_CHECKING:
@@ -88,6 +87,7 @@ class BaseElement:
     @property
     def _log(self) -> Logger:
         from tquality_core import Logger
+
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(Logger)
 

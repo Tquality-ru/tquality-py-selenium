@@ -23,11 +23,10 @@
 """
 from __future__ import annotations
 
-from typing import Any, Generator, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Generator
 
 import allure
 import pytest
-
 from selenium.webdriver.remote.webdriver import WebDriver
 
 if TYPE_CHECKING:

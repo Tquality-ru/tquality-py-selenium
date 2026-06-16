@@ -22,8 +22,6 @@ from tquality_selenium.elements import (
     Input,
     Label,
 )
-from tquality_selenium.utils.locator_utils import LocatorUtils
-from tquality_selenium.utils.os_utils import OSUtils
 from tquality_selenium.pages import BaseForm
 from tquality_selenium.screencast_provider import SeleniumScreencastProvider
 from tquality_selenium.screenshot_provider import SeleniumScreenshotProvider
@@ -47,6 +45,8 @@ from tquality_selenium.services import (
     Waiter,
     WaitTimeoutError,
 )
+from tquality_selenium.utils.locator_utils import LocatorUtils
+from tquality_selenium.utils.os_utils import OSUtils
 
 __all__ = [
     # Core re-exports

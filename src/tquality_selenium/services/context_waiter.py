@@ -15,11 +15,9 @@ from typing import Callable
 
 from selenium.common.exceptions import NoAlertPresentException
 from selenium.webdriver.common.alert import Alert
-
 from tquality_core import Waiter
 
 from tquality_selenium.services.context_manager import ContextManager
-
 
 AlertPredicate = Callable[[Alert], object]
 

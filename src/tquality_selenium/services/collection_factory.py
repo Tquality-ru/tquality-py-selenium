@@ -18,7 +18,7 @@ products = factory.from_page(Product, container_css=".product-card")
 """
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING, TypeVar, get_args, get_origin
+from typing import TYPE_CHECKING, Any, TypeVar, get_args, get_origin
 
 from pydantic import BaseModel, Field
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -130,13 +130,14 @@ class CollectionFactory:
 
     @property
     def _driver(self) -> WebDriver:
-        from tquality_selenium.container import SeleniumServices
         from tquality_selenium.browser import BrowserService
+        from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(BrowserService).driver
 
     @property
     def _log(self) -> Logger:
         from tquality_core import Logger
+
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(Logger)
 

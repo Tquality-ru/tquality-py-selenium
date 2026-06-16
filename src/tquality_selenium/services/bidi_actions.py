@@ -17,7 +17,7 @@ import base64
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Callable, Iterator, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Iterator
 
 from selenium.webdriver.common.bidi.browsing_context import (
     BoxClipRectangle,
@@ -52,6 +52,7 @@ class BiDiBrowserActions:
     @property
     def _log(self) -> Logger:
         from tquality_core import Logger
+
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(Logger)
 
@@ -148,6 +149,7 @@ class BiDiElementActions:
     @property
     def _log(self) -> Logger:
         from tquality_core import Logger
+
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(Logger)
 

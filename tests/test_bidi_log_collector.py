@@ -13,8 +13,6 @@
 """
 from __future__ import annotations
 
-import pytest
-
 from tquality_selenium.services.bidi_log_collector import BiDiLogCollector
 
 # --- BiDiLogCollector.filter_records: precedence ----------------------------------------------

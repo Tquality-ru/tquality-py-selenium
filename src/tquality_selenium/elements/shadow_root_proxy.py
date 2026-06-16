@@ -21,10 +21,9 @@ deep_button.click()  # резолв всей цепочки происходит
 """
 from __future__ import annotations
 
-from typing import Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from selenium.webdriver.remote.webelement import WebElement
-
 from tquality_core import ElementState, StateSpec
 
 from tquality_selenium.elements.button import Button

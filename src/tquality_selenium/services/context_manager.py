@@ -21,7 +21,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Iterator, TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterator
 
 from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -49,6 +49,7 @@ class ContextManager:
     @property
     def _log(self) -> Logger:
         from tquality_core import Logger
+
         from tquality_selenium.container import SeleniumServices
         return SeleniumServices.get_service(Logger)
 

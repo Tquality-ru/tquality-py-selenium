@@ -22,7 +22,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
