@@ -12,8 +12,12 @@ from typing import Any
 
 from tquality_core.schema import (
     build_schema_url,
-    generate_schema as _core_generate_schema,
     resolve_ref,
+)
+from tquality_core.schema import (
+    generate_schema as _core_generate_schema,
+)
+from tquality_core.schema import (
     write_schema_file as _core_write_schema_file,
 )
 
