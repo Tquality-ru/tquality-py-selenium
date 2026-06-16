@@ -31,29 +31,11 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    # `[screencast]` extra тянет imageio / imageio-ffmpeg / numpy / Pillow
-    # для webm-режима screencast'а (см. tquality_core.WebmScreencastRecorder).
-    # >=0.1.9 - per-test files plugin (`register_per_test_rebuilder` /
-    # `find_upwards`). Также подтягивает 0.1.8-фичи: ElementState /
-    # Waiter / ResolvedWaiter / LazyElements / WebDriverScreenshotProvider /
-    # WebmScreencastRecorder.
-    "tquality-py-core[screencast]>=0.1.11",
+    "tquality-py-core[screencast]>=0.1.14",
     "selenium>=4.44.0",
-    # `Capabilities`, `SeleniumConfig`, `CollectionFactory`-модели и
-    # валидаторы используют Pydantic v2 API напрямую (`BaseModel`,
-    # `ConfigDict(extra="allow")`, `field_validator`, `BeforeValidator`).
-    # Транзитивно тянется через `tquality-py-core`, но пин прописываем
-    # явно: ядро может сменить config-движок, не сломав нам валидацию.
     "pydantic==2.13.4",
-    # DI-контейнер `SeleniumServices` строится на DeclarativeContainer
-    # из dependency-injector. Тянется и через tquality-py-core, но
-    # прописываем явно - чтобы upstream ядро могло сменить DI-движок,
-    # не сломав нам резолв провайдеров.
     "dependency-injector>=4.49",
     "undetected-chromedriver>=3.5",
-    # Python 3.12 удалил distutils из stdlib, а undetected-chromedriver
-    # импортирует distutils.version.LooseVersion. setuptools >= 60 возвращает
-    # distutils как shim.
     "setuptools>=60",
     "pytest-xdist>=3.8.0",
     "pytest>=9.0.3",
@@ -76,6 +58,7 @@ tquality_selenium_page_source = "tquality_selenium.page_source_plugin"
 dev = [
     "mypy>=1.11",
     "pytest-timeout>=2.3",
+    "ruff>=0.14.0",
 ]
 
 [build-system]
@@ -130,7 +113,9 @@ markers = [
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src/tquality_selenium", "tests"]
+plugins = ["pydantic.mypy"]
+files = ["."]
+exclude = ['(^|/)\.',  '__pycache__']
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -152,3 +137,14 @@ module = [
     "imageio.*",
 ]
 ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+warn_required_dynamic_aliases = true
+
+[tool.ruff]
+exclude = [".*", "__pycache__"]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N"]
