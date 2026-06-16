@@ -3,6 +3,44 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
+## [0.1.15] - 2026-06-16
+
+### Изменено
+
+- **Зависимость от ядра поднята до `tquality-py-core>=0.1.13`.** Локальный
+  `os.chdir`-обёртка `_cwd` заменена на `PathUtils.override_config_search_dir`
+  (тред-безопасно); импорт per-test-плагина обновлён на
+  `tquality_core.plugins.per_test_files`. `expected_conditions`
+  импортируются точечно, без алиаса `EC`.
+- **W3C-поля `Capabilities` приведены к PEP8.** `platformName`/
+  `browserVersion` → snake_case `platform_name`/`browser_version` с
+  `alias=...`; модель сериализуется по алиасам
+  (`serialize_by_alias=True`), поэтому на сервер по-прежнему уходят
+  W3C-имена, а `populate_by_name=True` сохраняет конструирование по
+  обоим вариантам.
+- **Конфиг `mypy`/`ruff` выровнен с ядром** - `pydantic.mypy`-плагин,
+  `ruff` (`E`/`W`/`F`/`I`/`N`, line-length 120), `mypy files = ["."]`.
+- **Smoke-тест браузеров пропускается (skip), а не падает, если браузер
+  несовместим с локальной ОС** (например, Safari на Linux). На remote/grid
+  guard не срабатывает - кейс запускается на ноде.
+- **Browser-smoke переехал в `tests/grid/` со своим `config.json5`**
+  (`remote_url` Selenium-Grid). Ядро (per-test плагин) само смещает поиск
+  конфигов на директорию теста, поэтому грид-URL подхватывается локально -
+  без env и conftest; `TEST_REMOTE_URL` остаётся глобальным override'ом.
+  Так `safari-mac` и прочие кейсы запускаются на нодах грида, а не локально.
+
+### Исправлено
+
+- **Удалён залётный модульный вызов `BaseModel.model_validate()` в
+  `schema.py`**, ронявший импорт пакета.
+
+### Breaking
+
+- **Таймаут explicit-wait переехал в блок `waiter` ядра.** В `config.json5`
+  вместо `default_timeout: 10.0` используйте
+  `waiter: { timeout: 10.0, poll_interval: 0.5 }` (env -
+  `TEST_WAITER__TIMEOUT`).
+
 ## [0.1.14] - 2026-06-02
 
 ### Исправлено
