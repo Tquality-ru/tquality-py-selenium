@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from tquality_core import ElementState, StateSpec
 
-from tquality_selenium.elements.base_element import BaseElement
+from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.by import By
 
 
-class CheckBox(BaseElement):
+class CheckBox(Element):
     """Чекбокс."""
 
     def __init__(

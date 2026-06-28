@@ -1,5 +1,9 @@
 # tquality-py-selenium
 
+[![PyPI](https://img.shields.io/pypi/v/tquality-py-selenium)](https://pypi.org/project/tquality-py-selenium/)
+[![License](https://img.shields.io/pypi/l/tquality-py-selenium)](https://github.com/Tquality-ru/tquality-py-selenium/blob/master/LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-Tquality--ru%2Ftquality--py--selenium-blue?logo=github)](https://github.com/Tquality-ru/tquality-py-selenium)
+
 **Languages:** **English** · [Русский](README.ru.md)
 
 Selenium integration built on top of [tquality-py-core](https://github.com/Tquality-ru/tquality-py-core).

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from selenium.webdriver.common.keys import Keys
 
-from tquality_selenium.elements.base_element import BaseElement
+from tquality_selenium.elements.element import Element
 
 
-class Input(BaseElement):
+class Input(Element):
     """Текстовое поле ввода."""
 
     @property

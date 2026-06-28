@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from tquality_selenium import BaseElement, Button, By, CheckBox, Input, Label
+from tquality_selenium import Element, Button, By, CheckBox, Input, Label
 from tquality_selenium.elements.shadow_root_proxy import ShadowRootProxy
 
 
@@ -92,8 +92,8 @@ def test_typed_getters_return_correct_subclasses() -> None:
 
 
 def test_generic_get_element_returns_passed_type() -> None:
-    """Пользовательский подкласс `BaseElement` возвращается as-is через generic."""
-    class MyCustom(BaseElement):
+    """Пользовательский подкласс `Element` возвращается as-is через generic."""
+    class MyCustom(Element):
         pass
 
     host, child = _make_chain(2)
@@ -105,8 +105,8 @@ def test_generic_get_element_returns_passed_type() -> None:
 
 
 def test_base_element_shadow_root_property_returns_proxy() -> None:
-    """`BaseElement.shadow_root` отдаёт `ShadowRootProxy`, не raw Selenium ShadowRoot."""
-    el = BaseElement(By.css_selector(".host"))
+    """`Element.shadow_root` отдаёт `ShadowRootProxy`, не raw Selenium ShadowRoot."""
+    el = Element(By.css_selector(".host"))
     sr = el.shadow_root
 
     assert isinstance(sr, ShadowRootProxy)

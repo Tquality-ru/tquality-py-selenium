@@ -29,7 +29,7 @@ from pydantic import (
 )
 from selenium.webdriver.remote.webelement import WebElement
 
-from tquality_selenium import BaseElement, Button, ByKind
+from tquality_selenium import Element, Button, ByKind
 from tquality_selenium.services.collection_factory import (
     CollectionFactory,
     DomField,
@@ -473,13 +473,13 @@ def test_webelement_typed_field_receives_raw_element(
     assert "getAttribute" not in script
 
 
-# --- BaseElement-typed field (lazy, scoped to row) --------------------------
+# --- Element-typed field (lazy, scoped to row) --------------------------
 
 
 def test_base_element_subclass_typed_field_is_built_with_row_scoped_locator(
     make_collection_factory: MakeFactory,
 ) -> None:
-    """Поле типа `Button` (или другого BaseElement-наследника) собирается
+    """Поле типа `Button` (или другого Element-наследника) собирается
     лениво: фабрика склеивает XPath контейнера-строки + локатора поля через
     `LocatorUtils.join_xpath`, ничего не вытаскивая из JS.
     """
@@ -510,7 +510,7 @@ def test_base_element_subclass_typed_field_is_built_with_row_scoped_locator(
 def test_base_element_field_does_not_pollute_other_fields(
     make_collection_factory: MakeFactory,
 ) -> None:
-    """BaseElement-поле сосуществует с обычными текст/attr-полями."""
+    """Element-поле сосуществует с обычными текст/attr-полями."""
     class Row(BaseModel):
         model_config = ConfigDict(arbitrary_types_allowed=True)
         title: str = DomField.css(".name")
@@ -533,16 +533,16 @@ def test_base_element_field_does_not_pollute_other_fields(
 def test_bare_base_element_annotation_is_also_supported(
     make_collection_factory: MakeFactory,
 ) -> None:
-    """`BaseElement` сам по себе (не подкласс) тоже допустим."""
+    """`Element` сам по себе (не подкласс) тоже допустим."""
     class Row(BaseModel):
         model_config = ConfigDict(arbitrary_types_allowed=True)
-        any_el: BaseElement = DomField.xpath(".//span")
+        any_el: Element = DomField.xpath(".//span")
 
     factory = make_collection_factory([{}])
 
     [row] = factory.from_page(Row, ".card")
 
-    assert isinstance(row.any_el, BaseElement)
+    assert isinstance(row.any_el, Element)
     assert row.any_el.by.by_kind is ByKind.XPATH
 
 

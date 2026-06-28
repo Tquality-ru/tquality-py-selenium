@@ -1,6 +1,6 @@
 """Базовый UI-элемент.
 
-Идентифицируется локатором `By` (NamedTuple `(by_kind, value)`). Сервисы
+Идентифицируется локатором `By` (подкласс `BaseBy` - кортеж `(by, value)`). Сервисы
 (browser, logger, waiters, js_actions) резолвятся через активный composition
 root `SeleniumServices`, настроенный в `conftest.py` через `YourServices.setup()`.
 
@@ -10,11 +10,13 @@ root `SeleniumServices`, настроенный в `conftest.py` через `You
 элементу: `element.wait.until_visible()`, `element.wait.until_clickable()`...
 """
 from __future__ import annotations
+import typing
 
 from typing import TYPE_CHECKING, Any, Self
 
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.remote.webelement import WebElement
+from tquality_core import BaseElement as CoreBaseElement
 from tquality_core import ElementState, StatePredicate, StateSpec
 
 from tquality_selenium.elements.by import By
@@ -34,7 +36,7 @@ if TYPE_CHECKING:
     from tquality_selenium.elements.shadow_root_proxy import ShadowRootProxy
 
 
-class BaseElement:
+class Element(CoreBaseElement):
     def __init__(
         self,
         by: By,
@@ -62,6 +64,7 @@ class BaseElement:
         Поднимает `TimeoutException`, если состояние не достигнуто."""
         state = self._state
         if state is ElementState.EXISTS_IN_ANY_STATE:
+            self.wait.until_present(timeout, raise_on_timeout=True)
             return
         if state is ElementState.CLICKABLE:
             self.wait.until_clickable(timeout, raise_on_timeout=True)
@@ -219,7 +222,7 @@ class BaseElement:
 
         Возвращает `ShadowRootProxy`, у которого typed getter'ы
         (`get_button` / `get_input` / `get_label` / `get_checkbox` +
-        generic `get_element[E]`) строят `BaseElement`-инстансы со
+        generic `get_element[E]`) строят `Element`-инстансы со
         shadow-aware `_find`. Цепочки `host.shadow_root.get_X(...)
         .shadow_root.get_Y(...)` стэкаются - каждый шаг резолвится при
         обращении, stale-reference исключён.
@@ -238,7 +241,7 @@ class BaseElement:
 
     def dismiss_if_visible(
         self,
-        close_with: BaseElement | None = None,
+        close_with: Element | None = None,
         timeout: float | None = None,
     ) -> Self:
         """No-op если элемент не виден; иначе кликнуть и дождаться исчезновения.
@@ -261,5 +264,6 @@ class BaseElement:
         with self.js_actions.maybe_highlight():
             self._find().click()
 
+    @typing.override
     def __repr__(self) -> str:
         return self._name

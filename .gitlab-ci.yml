@@ -13,7 +13,7 @@ default:
     paths:
       - .venv/
       - .uv-cache/
-      - .mypy_cache/
+      - .ty_cache/
       - .pytest_cache/
   interruptible: true
 
@@ -23,10 +23,10 @@ variables:
   GIT_DEPTH: 0
 
 # Статический анализ типов - не требует браузера, Linux-runner.
-mypy:
+ty:
   stage: check
   script:
-    - uv run mypy
+    - uv run ty check
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

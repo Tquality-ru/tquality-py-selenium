@@ -21,9 +21,9 @@ class MyPage(BaseForm):
 """
 from __future__ import annotations
 
-from tquality_core import ElementState, StateSpec
+from tquality_core import ElementState, FormattableElement, StateSpec
 
-from tquality_selenium.elements.base_element import BaseElement
+from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.button import Button
 from tquality_selenium.elements.by import By
 from tquality_selenium.elements.checkbox import CheckBox
@@ -33,10 +33,65 @@ from tquality_selenium.services.lazy_elements import LazyElements
 from tquality_selenium.utils.locator_utils import LocatorUtils
 
 
-class ElementFactory:
-    """Создает типизированные элементы (Button/Input/CheckBox/Label/BaseElement)."""
+class FormattableElementFactory:
+    """Шаблонные элементы: локатор с placeholder'ами + отложенная сборка.
 
-    def element[E: BaseElement](
+    Доступна как `element_factory.formattable`. Каждый метод повторяет
+    сигнатуру одноимённого метода `ElementFactory`, но возвращает не сам
+    элемент, а `FormattableElement` - вызовите `.format(*args, **kwargs)`,
+    чтобы подставить аргументы в `value` локатора и получить готовый элемент:
+
+    ```python
+    row = element_factory.formattable.button(
+        By.xpath("//tr[td[normalize-space()={!r}]]//button"),
+    )
+    row.format("Иванов").click()
+    ```
+    """
+
+    def element[E: Element](
+        self,
+        element_cls: type[E],
+        by: By,
+        name: str = "",
+        state: StateSpec = ElementState.DISPLAYED,
+    ) -> FormattableElement[E, By]:
+        return FormattableElement(by, lambda b: element_cls(b, name, state=state), name)
+
+    def button(
+        self, by: By, name: str = "",
+        state: StateSpec = ElementState.CLICKABLE,
+    ) -> FormattableElement[Button, By]:
+        return FormattableElement(by, lambda b: Button(b, name, state=state), name)
+
+    def checkbox(
+        self, by: By, name: str = "",
+        state: StateSpec = ElementState.CLICKABLE,
+    ) -> FormattableElement[CheckBox, By]:
+        return FormattableElement(by, lambda b: CheckBox(b, name, state=state), name)
+
+    def label(
+        self, by: By, name: str = "",
+        state: StateSpec = ElementState.DISPLAYED,
+    ) -> FormattableElement[Label, By]:
+        return FormattableElement(by, lambda b: Label(b, name, state=state), name)
+
+    def input(
+        self, by: By, name: str = "",
+        state: StateSpec = ElementState.DISPLAYED,
+    ) -> FormattableElement[Input, By]:
+        return FormattableElement(by, lambda b: Input(b, name, state=state), name)
+
+
+class ElementFactory:
+    """Создает типизированные элементы (Button/Input/CheckBox/Label/Element)."""
+
+    @property
+    def formattable(self) -> FormattableElementFactory:
+        """Фабрика шаблонных элементов (локатор с `str.format`-placeholder'ами)."""
+        return FormattableElementFactory()
+
+    def element[E: Element](
         self,
         element_cls: type[E],
         by: By,
@@ -69,7 +124,7 @@ class ElementFactory:
     ) -> Input:
         return Input(by, name, state=state)
 
-    def elements[E: BaseElement](
+    def elements[E: Element](
         self,
         element_cls: type[E],
         by: By,
@@ -89,10 +144,10 @@ class ElementFactory:
     def inputs(self, by: By, name_prefix: str = "") -> LazyElements[Input]:
         return self.elements(Input, by, name_prefix)
 
-    def get_child_element[E: BaseElement](
+    def get_child_element[E: Element](
         self,
         element_cls: type[E],
-        parent: BaseElement,
+        parent: Element,
         by: By,
         name: str = "",
         state: StateSpec = ElementState.DISPLAYED,
@@ -100,54 +155,54 @@ class ElementFactory:
         return element_cls(LocatorUtils.join_xpath(parent.by, by), name, state=state)
 
     def get_child_button(
-        self, parent: BaseElement, by: By, name: str = "",
+        self, parent: Element, by: By, name: str = "",
         state: StateSpec = ElementState.CLICKABLE,
     ) -> Button:
         return Button(LocatorUtils.join_xpath(parent.by, by), name, state=state)
 
     def get_child_checkbox(
-        self, parent: BaseElement, by: By, name: str = "",
+        self, parent: Element, by: By, name: str = "",
         state: StateSpec = ElementState.CLICKABLE,
     ) -> CheckBox:
         return CheckBox(LocatorUtils.join_xpath(parent.by, by), name, state=state)
 
     def get_child_label(
-        self, parent: BaseElement, by: By, name: str = "",
+        self, parent: Element, by: By, name: str = "",
         state: StateSpec = ElementState.DISPLAYED,
     ) -> Label:
         return Label(LocatorUtils.join_xpath(parent.by, by), name, state=state)
 
     def get_child_input(
-        self, parent: BaseElement, by: By, name: str = "",
+        self, parent: Element, by: By, name: str = "",
         state: StateSpec = ElementState.DISPLAYED,
     ) -> Input:
         return Input(LocatorUtils.join_xpath(parent.by, by), name, state=state)
 
-    def get_child_elements[E: BaseElement](
+    def get_child_elements[E: Element](
         self,
         element_cls: type[E],
-        parent: BaseElement,
+        parent: Element,
         by: By,
         name_prefix: str = "",
     ) -> LazyElements[E]:
         return LazyElements(element_cls, LocatorUtils.join_xpath(parent.by, by), name_prefix)
 
     def get_child_buttons(
-        self, parent: BaseElement, by: By, name_prefix: str = "",
+        self, parent: Element, by: By, name_prefix: str = "",
     ) -> LazyElements[Button]:
         return self.get_child_elements(Button, parent, by, name_prefix)
 
     def get_child_checkboxes(
-        self, parent: BaseElement, by: By, name_prefix: str = "",
+        self, parent: Element, by: By, name_prefix: str = "",
     ) -> LazyElements[CheckBox]:
         return self.get_child_elements(CheckBox, parent, by, name_prefix)
 
     def get_child_labels(
-        self, parent: BaseElement, by: By, name_prefix: str = "",
+        self, parent: Element, by: By, name_prefix: str = "",
     ) -> LazyElements[Label]:
         return self.get_child_elements(Label, parent, by, name_prefix)
 
     def get_child_inputs(
-        self, parent: BaseElement, by: By, name_prefix: str = "",
+        self, parent: Element, by: By, name_prefix: str = "",
     ) -> LazyElements[Input]:
         return self.get_child_elements(Input, parent, by, name_prefix)

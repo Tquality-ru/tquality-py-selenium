@@ -3,6 +3,46 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
+## [0.1.16] - 2026-06-28
+
+### Изменено
+
+- **`BaseElement` → `Element(tquality_core.BaseElement)`.** Конкретный
+  selenium-элемент переименован в `Element` и теперь реализует ядровый
+  абстрактный `BaseElement` (тонкий интерфейс на композиции). Подклассы
+  (`Button`/`Input`/`CheckBox`/`Label`), `element_factory`, `Actions`,
+  `ShadowRootProxy`, `collection_factory` и `LazyElements` обновлены.
+  Экспорт `BaseElement` из пакета заменён на `Element`.
+- **`By(BaseBy)`.** `By` теперь наследует ядровый `BaseBy` (подкласс
+  `tuple[str, str]`): общие W3C-стратегии (`id`, `xpath`, `name`,
+  `class_name`, `tag_name`, `css_selector`, `link_text`,
+  `partial_link_text`) приходят из ядра; здесь остаются `to_xpath()` и
+  свойство `by_kind` (как `ByKind`). Поведение распаковки в `(str, str)`
+  сохранено.
+- **`ElementState.EXISTS_IN_ANY_STATE` ждёт присутствия.** В
+  `Element._await_state` это состояние теперь ожидает `wait.until_present()`
+  (элемент существует в DOM; видимость/кликабельность не проверяются)
+  вместо пропуска любых ожиданий.
+
+### Добавлено
+
+- **`element_factory.formattable`** — фабрика шаблонных элементов
+  (`FormattableElementFactory`). Методы `button`/`input`/`checkbox`/`label`/
+  `element` повторяют сигнатуры обычной фабрики, но возвращают
+  `FormattableElement`: `element_factory.formattable.button(By.xpath("...{}..."))`
+  `.format(arg)` подставляет аргументы в локатор и отдаёт готовый элемент.
+
+### Исправлено
+
+- **`pageLoadStrategy` сериализуется как валидная строка.** Selenium 4.44
+  хранит `page_load_strategy` как вариант `(str, Enum)` `PageLoadStrategy`,
+  который на части рантаймов уходит в capability как `"PageLoadStrategy.normal"`
+  вместо `"normal"` - Grid-node и локальный driver отвергают сессию
+  (`invalid argument: cannot parse capability: pageLoadStrategy`).
+  `BrowserService` теперь приводит стратегию к `.value` перед созданием
+  драйвера (и в remote-, и в локальной ветке). Схема `config.schema.json`
+  перегенерирована под актуальный core (блок `logging`).
+
 ## [0.1.15] - 2026-06-16
 
 ### Изменено

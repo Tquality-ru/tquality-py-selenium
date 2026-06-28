@@ -1,8 +1,8 @@
-"""W3C input-actions chain - принимает `BaseElement`, не raw `WebElement`.
+"""W3C input-actions chain - принимает `Element`, не raw `WebElement`.
 
 `Actions` - fluent builder поверх Selenium-овского `ActionChains`. Каждый
 метод возвращает `self`, в конце `perform()` выполняет накопленную цепочку.
-Элементы резолвятся через `BaseElement._find()` непосредственно при
+Элементы резолвятся через `Element._find()` непосредственно при
 `perform()`, поэтому stale reference между построением и выполнением
 цепочки не возникает.
 
@@ -19,11 +19,11 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.remote.webdriver import WebDriver
 
 if TYPE_CHECKING:
-    from tquality_selenium.elements.base_element import BaseElement
+    from tquality_selenium.elements.element import Element
 
 
 class Actions:
-    """Fluent W3C-actions builder, элементы - `BaseElement` (lazy-резолв)."""
+    """Fluent W3C-actions builder, элементы - `Element` (lazy-резолв)."""
 
     def __init__(self, driver_getter: Callable[[], WebDriver]) -> None:
         self._driver_getter = driver_getter
@@ -31,7 +31,7 @@ class Actions:
 
     # --- mouse -----------------------------------------------------------
 
-    def click(self, element: BaseElement | None = None) -> Actions:
+    def click(self, element: Element | None = None) -> Actions:
         """Click. Без `element` - клик в текущей точке курсора."""
         if element is None:
             self._steps.append(lambda ac: ac.click())
@@ -39,7 +39,7 @@ class Actions:
             self._steps.append(lambda ac: ac.click(element._find()))
         return self
 
-    def click_and_hold(self, element: BaseElement | None = None) -> Actions:
+    def click_and_hold(self, element: Element | None = None) -> Actions:
         """Зажать ЛКМ. Парный `release()` отпускает."""
         if element is None:
             self._steps.append(lambda ac: ac.click_and_hold())
@@ -47,7 +47,7 @@ class Actions:
             self._steps.append(lambda ac: ac.click_and_hold(element._find()))
         return self
 
-    def release(self, element: BaseElement | None = None) -> Actions:
+    def release(self, element: Element | None = None) -> Actions:
         """Отпустить ранее зажатую ЛКМ."""
         if element is None:
             self._steps.append(lambda ac: ac.release())
@@ -55,7 +55,7 @@ class Actions:
             self._steps.append(lambda ac: ac.release(element._find()))
         return self
 
-    def context_click(self, element: BaseElement | None = None) -> Actions:
+    def context_click(self, element: Element | None = None) -> Actions:
         """Правый клик."""
         if element is None:
             self._steps.append(lambda ac: ac.context_click())
@@ -63,20 +63,20 @@ class Actions:
             self._steps.append(lambda ac: ac.context_click(element._find()))
         return self
 
-    def double_click(self, element: BaseElement | None = None) -> Actions:
+    def double_click(self, element: Element | None = None) -> Actions:
         if element is None:
             self._steps.append(lambda ac: ac.double_click())
         else:
             self._steps.append(lambda ac: ac.double_click(element._find()))
         return self
 
-    def move_to(self, element: BaseElement) -> Actions:
+    def move_to(self, element: Element) -> Actions:
         """Навести курсор на элемент (hover)."""
         self._steps.append(lambda ac: ac.move_to_element(element._find()))
         return self
 
     def move_to_with_offset(
-        self, element: BaseElement, x: int, y: int,
+        self, element: Element, x: int, y: int,
     ) -> Actions:
         """Hover с offset'ом относительно центра элемента."""
         self._steps.append(
@@ -90,7 +90,7 @@ class Actions:
         return self
 
     def drag_and_drop(
-        self, source: BaseElement, target: BaseElement,
+        self, source: Element, target: Element,
     ) -> Actions:
         self._steps.append(
             lambda ac: ac.drag_and_drop(source._find(), target._find()),
@@ -98,7 +98,7 @@ class Actions:
         return self
 
     def drag_and_drop_by_offset(
-        self, source: BaseElement, x: int, y: int,
+        self, source: Element, x: int, y: int,
     ) -> Actions:
         self._steps.append(
             lambda ac: ac.drag_and_drop_by_offset(source._find(), x, y),
@@ -113,7 +113,7 @@ class Actions:
         self._steps.append(lambda ac: ac.send_keys(*keys))
         return self
 
-    def send_keys_to(self, element: BaseElement, *keys: str) -> Actions:
+    def send_keys_to(self, element: Element, *keys: str) -> Actions:
         """Сфокусировать `element` и напечатать `keys`."""
         self._steps.append(
             lambda ac: ac.send_keys_to_element(element._find(), *keys),
@@ -121,7 +121,7 @@ class Actions:
         return self
 
     def key_down(
-        self, key: str, element: BaseElement | None = None,
+        self, key: str, element: Element | None = None,
     ) -> Actions:
         """Зажать модификатор (`Keys.CONTROL` / `Keys.SHIFT` / ...).
         Парный `key_up(key)` обязателен."""
@@ -132,7 +132,7 @@ class Actions:
         return self
 
     def key_up(
-        self, key: str, element: BaseElement | None = None,
+        self, key: str, element: Element | None = None,
     ) -> Actions:
         if element is None:
             self._steps.append(lambda ac: ac.key_up(key))
@@ -142,7 +142,7 @@ class Actions:
 
     # --- scroll ---------------------------------------------------------
 
-    def scroll_to(self, element: BaseElement) -> Actions:
+    def scroll_to(self, element: Element) -> Actions:
         """Прокрутить страницу так, чтобы элемент попал во вьюпорт."""
         self._steps.append(lambda ac: ac.scroll_to_element(element._find()))
         return self
@@ -164,7 +164,7 @@ class Actions:
     def perform(self) -> None:
         """Собрать `ActionChains` и выполнить накопленную цепочку.
 
-        `BaseElement._find()` вызывается здесь, per-step - stale reference
+        `Element._find()` вызывается здесь, per-step - stale reference
         между билдером и выполнением исключён. После выполнения внутренний
         буфер очищается, builder можно переиспользовать для новой цепочки.
         """

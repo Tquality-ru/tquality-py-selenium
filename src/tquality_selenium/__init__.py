@@ -1,7 +1,7 @@
 from tquality_core import (
+    BaseBy,
     BaseConfig,
     ElementState,
-    Locator,
     Logger,
     LogLevel,
     StatePredicate,
@@ -14,7 +14,7 @@ from tquality_selenium.browser import BrowserService
 from tquality_selenium.config import BrowserType, Capabilities, SeleniumConfig
 from tquality_selenium.container import SeleniumServices
 from tquality_selenium.elements import (
-    BaseElement,
+    Element,
     Button,
     By,
     ByKind,
@@ -50,9 +50,9 @@ from tquality_selenium.utils.os_utils import OSUtils
 
 __all__ = [
     # Core re-exports
+    "BaseBy",
     "BaseConfig",
     "ElementState",
-    "Locator",
     "Logger",
     "LogLevel",
     "StatePredicate",
@@ -61,7 +61,7 @@ __all__ = [
     "step",
     # Selenium-specific
     "Actions",
-    "BaseElement",
+    "Element",
     "BaseForm",
     "BiDiBrowserActions",
     "BiDiElementActions",

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from tquality_core import ElementState, StateSpec
 
-from tquality_selenium.elements.base_element import BaseElement
+from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.by import By
 
 
-class Button(BaseElement):
+class Button(Element):
     """Кнопка. В большинстве случаев - `click()`; для submit-кнопок `submit()`."""
 
     def __init__(

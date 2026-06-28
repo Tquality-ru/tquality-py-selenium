@@ -1,5 +1,6 @@
 """Общие фикстуры для тестов `tquality_selenium`."""
 from __future__ import annotations
+import typing
 
 from collections.abc import Iterator
 from pathlib import Path
@@ -40,10 +41,12 @@ def make_collection_factory() -> Callable[[list[dict[str, Any]]], CollectionFact
 
         class _StubbedFactory(CollectionFactory):
             @property
+            @typing.override
             def _driver(self) -> Any:
                 return driver
 
             @property
+            @typing.override
             def _log(self) -> Any:
                 return log
 

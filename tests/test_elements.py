@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, override
 
 import pytest
 
 from tquality_selenium import (
-    BaseElement,
+    Element,
     Button,
     By,
     CheckBox,
@@ -20,12 +20,12 @@ from tquality_selenium import (
 
 
 def test_base_element_default_name_uses_locator() -> None:
-    el = BaseElement(By.id("submit"))
+    el = Element(By.id("submit"))
     assert "id" in el._name and "submit" in el._name
 
 
 def test_base_element_custom_name() -> None:
-    el = BaseElement(By.css_selector(".x"), "Элемент")
+    el = Element(By.css_selector(".x"), "Элемент")
     assert el._name == "Элемент"
 
 
@@ -48,7 +48,7 @@ def test_input_has_type_and_clear() -> None:
 
 def test_label_is_base_element() -> None:
     label = Label(By.css_selector(".title"))
-    assert isinstance(label, BaseElement)
+    assert isinstance(label, Element)
 
 
 def test_element_js_actions_is_bound() -> None:
@@ -59,7 +59,7 @@ def test_element_js_actions_is_bound() -> None:
 
 
 def test_base_element_has_dismiss_if_visible_helper() -> None:
-    el = BaseElement(By.css_selector(".cookies"))
+    el = Element(By.css_selector(".cookies"))
     assert hasattr(el, "dismiss_if_visible") and callable(el.dismiss_if_visible)
 
 
@@ -270,13 +270,13 @@ def test_element_factory_elements_default_prefix_is_class_name() -> None:
 
 
 def test_base_element_by_and_name_properties_expose_locator_and_name() -> None:
-    el = BaseElement(By.id("submit"), "Login")
+    el = Element(By.id("submit"), "Login")
     assert el.by == By.id("submit")
     assert el.name == "Login"
 
 
 def test_element_factory_element_generic_returns_subclass_instance() -> None:
-    """`element[E](Button, ...)` - инстанс именно `Button`, не `BaseElement`."""
+    """`element[E](Button, ...)` - инстанс именно `Button`, не `Element`."""
     factory = ElementFactory()
     btn = factory.element(Button, By.id("submit"), "Submit")
     assert isinstance(btn, Button)
@@ -293,7 +293,7 @@ def test_element_factory_element_generic_returns_subclass_instance() -> None:
     ],
 )
 def test_element_factory_typed_collection_wrappers(
-    method: str, expected_cls: type[BaseElement],
+    method: str, expected_cls: type[Element],
 ) -> None:
     """`factory.buttons/checkboxes/labels/inputs` - типизированные обёртки
     над `elements()` для конкретных классов."""
@@ -307,7 +307,7 @@ def test_element_factory_get_child_element_joins_parent_locator_via_xpath() -> N
     """`get_child_element` склеивает `parent.by + child.by` через
     `LocatorUtils.join_xpath` - результат XPATH-локатор."""
     factory = ElementFactory()
-    parent = BaseElement(By.id("container"), "Container")
+    parent = Element(By.id("container"), "Container")
     child = factory.get_child_element(
         Button, parent, By.css_selector("button.primary"), "Primary",
     )
@@ -329,10 +329,10 @@ def test_element_factory_get_child_element_joins_parent_locator_via_xpath() -> N
     ],
 )
 def test_element_factory_get_child_per_class_wrappers(
-    method: str, expected_cls: type[BaseElement],
+    method: str, expected_cls: type[Element],
 ) -> None:
     factory = ElementFactory()
-    parent = BaseElement(By.id("root"), "Root")
+    parent = Element(By.id("root"), "Root")
     child = getattr(factory, method)(parent, By.css_selector(".x"), "X")
     assert isinstance(child, expected_cls)
     assert child.by.by_kind.value == "xpath"
@@ -340,7 +340,7 @@ def test_element_factory_get_child_per_class_wrappers(
 
 def test_element_factory_get_child_elements_joins_locator_and_returns_lazy() -> None:
     factory = ElementFactory()
-    parent = BaseElement(By.id("container"), "Container")
+    parent = Element(By.id("container"), "Container")
     collection = factory.get_child_elements(
         Button, parent, By.css_selector("button"), "btn",
     )
@@ -361,10 +361,10 @@ def test_element_factory_get_child_elements_joins_locator_and_returns_lazy() -> 
     ],
 )
 def test_element_factory_get_child_collection_per_class_wrappers(
-    method: str, expected_cls: type[BaseElement],
+    method: str, expected_cls: type[Element],
 ) -> None:
     factory = ElementFactory()
-    parent = BaseElement(By.id("root"), "Root")
+    parent = Element(By.id("root"), "Root")
     collection = getattr(factory, method)(parent, By.css_selector(".x"), "item")
     assert isinstance(collection, LazyElements)
     assert isinstance(collection[0], expected_cls)
@@ -580,6 +580,7 @@ class _FakeDriverWaiter(_DriverWaiter):
         self.calls: list[dict[str, Any]] = []
         self._return_value = return_value
 
+    @override
     def until(
         self,
         condition: Any,
@@ -647,7 +648,7 @@ def test_until_clickable_delegates_and_returns_bool() -> None:
 def test_until_invisible_delegates_and_returns_bool() -> None:
     from tquality_selenium.services.element_waiter import ElementWaiter
 
-    el = BaseElement(By.css_selector(".banner"), "Cookie banner")
+    el = Element(By.css_selector(".banner"), "Cookie banner")
     fake = _FakeDriverWaiter(return_value=True)
     result = ElementWaiter(fake, el).until_invisible(timeout=1.0)
 
@@ -659,7 +660,7 @@ def test_until_invisible_delegates_and_returns_bool() -> None:
 def test_until_present_delegates_and_returns_bool() -> None:
     from tquality_selenium.services.element_waiter import ElementWaiter
 
-    el = BaseElement(By.id("x"), "X")
+    el = Element(By.id("x"), "X")
     fake = _FakeDriverWaiter(return_value=True)
     result = ElementWaiter(fake, el).until_present()
 
@@ -673,7 +674,7 @@ def test_until_not_present_invokes_find_elements_in_predicate() -> None:
 
     from tquality_selenium.services.element_waiter import ElementWaiter
 
-    el = BaseElement(By.css_selector(".gone"), "Gone")
+    el = Element(By.css_selector(".gone"), "Gone")
     fake = _FakeDriverWaiter(return_value=True)
     result = ElementWaiter(fake, el).until_not_present()
 
@@ -691,12 +692,12 @@ def test_wait_until_passes_element_into_user_condition() -> None:
     """`wait.until(cond, ...)` - cond получает сам элемент, не WebDriver."""
     from tquality_selenium.services.element_waiter import ElementWaiter
 
-    el = BaseElement(By.id("x"), "X")
+    el = Element(By.id("x"), "X")
     fake = _FakeDriverWaiter(return_value=True)
 
     captured: list[Any] = []
 
-    def user_cond(e: BaseElement) -> bool:
+    def user_cond(e: Element) -> bool:
         captured.append(e)
         return True
 
@@ -714,7 +715,7 @@ def test_wait_until_passes_element_into_user_condition() -> None:
 def test_wait_until_default_message_when_omitted() -> None:
     from tquality_selenium.services.element_waiter import ElementWaiter
 
-    el = BaseElement(By.id("x"), "X")
+    el = Element(By.id("x"), "X")
     fake = _FakeDriverWaiter()
     ElementWaiter(fake, el).until(lambda _e: True)
 
@@ -731,7 +732,7 @@ def test_wait_for_computed_style_builds_message_and_uses_js_actions() -> None:
 
     ja = MagicMock()
     ja.get_computed_style.return_value = "block"
-    with patch.object(BaseElement, "js_actions", new_callable=PropertyMock) as prop:
+    with patch.object(Element, "js_actions", new_callable=PropertyMock) as prop:
         prop.return_value = ja
         result = ElementWaiter(fake, btn).for_computed_style(
             StyleProperty.DISPLAY, "block", timeout=3.0,

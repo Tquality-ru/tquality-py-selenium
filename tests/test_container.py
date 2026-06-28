@@ -18,16 +18,17 @@ from __future__ import annotations
 import subprocess
 import sys
 import textwrap
+import typing
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 import pytest
 from dependency_injector import providers
 
 from tquality_selenium import (
-    BaseElement,
+    Element,
     BrowserService,
     Button,
     By,
@@ -78,6 +79,7 @@ class _FakeBrowserA(BrowserService):
     # Возвращаем строки-сентинелы (а не настоящие WebElement) - тестам
     # достаточно идентификации; mypy override-LSP проверяет совместимость
     # типа возврата, поэтому маркируем `list[Any]`.
+    @typing.override
     def find_elements(self, by: str, value: str) -> list[Any]:
         return ["A0", "A1", "A2"]
 
@@ -86,6 +88,7 @@ class _FakeBrowserB(BrowserService):
     def __init__(self) -> None:
         pass
 
+    @override
     def find_elements(self, by: str, value: str) -> list[Any]:
         return ["B0", "B1"]
 
@@ -158,8 +161,8 @@ def test_override_active_does_not_leak_after_block() -> None:
 
 
 def test_override_active_propagates_to_base_element_browser_lookup() -> None:
-    """`BaseElement._browser` идет через активный контейнер - видит override."""
-    el = BaseElement(By.css_selector(".x"))
+    """`Element._browser` идет через активный контейнер - видит override."""
+    el = Element(By.css_selector(".x"))
     with _ServicesA.override_active():
         assert isinstance(el._browser, _FakeBrowserA)
 

@@ -5,7 +5,7 @@ callable-резолвер элемента и выполняет действи�
 находится заново при каждом вызове, что снимает stale reference.
 
 Оба класса получают driver через `driver_getter`-композицию от
-`BrowserService` (см. `BrowserService.js_actions` / `BaseElement.js_actions`)
+`BrowserService` (см. `BrowserService.js_actions` / `Element.js_actions`)
 вместо прямой подвязки к DI-контейнеру.
 """
 from __future__ import annotations

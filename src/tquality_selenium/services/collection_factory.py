@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 
-from tquality_selenium.elements.base_element import BaseElement
+from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.by import By
 from tquality_selenium.elements.by_kind import ByKind
 from tquality_selenium.services.pseudo_element import PseudoElement
@@ -234,13 +234,13 @@ class CollectionFactory:
     @staticmethod
     def _annotation_base_element_type(
         annotation: Any,
-    ) -> type[BaseElement] | None:
+    ) -> type[Element] | None:
         candidates = (
             list(get_args(annotation)) if get_origin(annotation) is not None
             else [annotation]
         )
         for c in candidates:
-            if isinstance(c, type) and issubclass(c, BaseElement):
+            if isinstance(c, type) and issubclass(c, Element):
                 return c
         return None
 

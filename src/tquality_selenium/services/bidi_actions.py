@@ -8,7 +8,7 @@
 обёртки, и доступ к низкоуровневому API.
 
 Оба класса получают driver через `driver_getter`-композицию от
-`BrowserService` (см. `BrowserService.bidi` / `BaseElement.bidi_actions`),
+`BrowserService` (см. `BrowserService.bidi` / `Element.bidi_actions`),
 а не реcолвят его через DI-контейнер.
 """
 from __future__ import annotations

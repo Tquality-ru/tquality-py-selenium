@@ -1,31 +1,37 @@
-"""Локатор: пара `(стратегия, значение)`.
+"""Локатор `By` для Selenium - подкласс ядрового `BaseBy`.
 
-`By` - это `NamedTuple` `(by_kind, value)`, где `by_kind` - инстанс enum
-`ByKind`. Поскольку `ByKind` наследуется от `str`, `By` прозрачно
-распаковывается в `(str, str)` для `WebDriver.find_element(by, value)`.
+Все используемые стратегии - общие W3C (`id`, `xpath`, `name`, `class_name`,
+`tag_name`, `css_selector`, `link_text`, `partial_link_text`) - наследуются
+из `BaseBy`, поэтому здесь только `to_xpath()` (композиция дочерних
+локаторов) и свойство `by_kind` (стратегия как `ByKind`).
 
-Конструируется через классовые методы по имени стратегии:
+`By` - подкласс `tuple[str, str]`, прозрачно распаковывается в `(str, str)`
+для `WebDriver.find_element(by, value)` и подходит для selenium API,
+ожидающего `(strategy, value)`-кортеж.
 
 ```python
 from tquality_selenium import By
 
-By.id("submit") # By(by_kind=ByKind.ID, value="submit")
-By.xpath("//button[1]") # By(by_kind=ByKind.XPATH, value="//button[1]")
-By.css_selector(".item") # By(by_kind=ByKind.CSS_SELECTOR, value=".item")
+By.id("submit")          # By(by='id', value='submit')
+By.xpath("//button[1]")  # By(by='xpath', value='//button[1]')
+By.css_selector(".item") # By(by='css selector', value='.item')
 ```
 """
 from __future__ import annotations
 
-from typing import NamedTuple
-
 from cssselect import GenericTranslator
+from tquality_core import BaseBy
 
 from tquality_selenium.elements.by_kind import ByKind
 
 
-class By(NamedTuple):
-    by_kind: ByKind
-    value: str
+class By(BaseBy):
+    __slots__ = ()
+
+    @property
+    def by_kind(self) -> ByKind:
+        """Стратегия как `ByKind` (производное от строкового `by`)."""
+        return ByKind(self.by)
 
     def to_xpath(self) -> str:
         from tquality_core.utils.xpath_utils import XPathUtils
@@ -53,35 +59,3 @@ class By(NamedTuple):
                 return GenericTranslator().css_to_xpath(self.value, prefix="//")
             case _:
                 raise ValueError(f"Unsupported by kind: {self.by_kind}")
-
-    @classmethod
-    def id(cls, value: str) -> By:
-        return cls(ByKind.ID, value)
-
-    @classmethod
-    def xpath(cls, value: str) -> By:
-        return cls(ByKind.XPATH, value)
-
-    @classmethod
-    def link_text(cls, value: str) -> By:
-        return cls(ByKind.LINK_TEXT, value)
-
-    @classmethod
-    def partial_link_text(cls, value: str) -> By:
-        return cls(ByKind.PARTIAL_LINK_TEXT, value)
-
-    @classmethod
-    def name(cls, value: str) -> By:
-        return cls(ByKind.NAME, value)
-
-    @classmethod
-    def tag_name(cls, value: str) -> By:
-        return cls(ByKind.TAG_NAME, value)
-
-    @classmethod
-    def class_name(cls, value: str) -> By:
-        return cls(ByKind.CLASS_NAME, value)
-
-    @classmethod
-    def css_selector(cls, value: str) -> By:
-        return cls(ByKind.CSS_SELECTOR, value)

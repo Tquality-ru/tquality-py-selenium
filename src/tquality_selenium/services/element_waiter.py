@@ -28,12 +28,12 @@ from selenium.webdriver.support.expected_conditions import (
 )
 
 if TYPE_CHECKING:
-    from tquality_selenium.elements.base_element import BaseElement
+    from tquality_selenium.elements.element import Element
     from tquality_selenium.services.driver_waiter import DriverWaiter
     from tquality_selenium.services.style_property import StyleProperty
 
 
-class ElementWaiter[E: "BaseElement"]:
+class ElementWaiter[E: "Element"]:
     """Ожидания, привязанные к элементу. Делегирует polling в `DriverWaiter`.
 
     Параметры (одинаковые у всех методов):

@@ -10,14 +10,14 @@ from typing import TYPE_CHECKING
 
 from tquality_core import LazyElements as _CoreLazyElements
 
-from tquality_selenium.elements.base_element import BaseElement
+from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.by import By
 
 if TYPE_CHECKING:
     from tquality_selenium.browser import BrowserService
 
 
-class LazyElements[E: BaseElement](_CoreLazyElements[E]):
+class LazyElements[E: Element](_CoreLazyElements[E]):
     def __init__(
         self,
         element_cls: type[E],

@@ -12,11 +12,11 @@ uv sync
 ```
 
 Команда создаст `.venv/` и установит зависимости проекта плюс dev-группу
-(mypy, pytest).
+(ty, pytest).
 
 ## Установка git-хуков
 
-Для автоматической проверки типов mypy перед каждым коммитом выполните:
+Для автоматической проверки типов ty перед каждым коммитом выполните:
 
 ```bash
 ./scripts/install-hooks.sh
@@ -58,7 +58,7 @@ uv sync
 ## Проверка типов
 
 ```bash
-uv run mypy
+uv run ty check
 ```
 
 Ошибки типов блокируют merge в master.
@@ -122,7 +122,7 @@ uv build
 
 ### На каждом MR и на master
 
-- **`mypy`** - строгий режим проверки типов.
+- **`ty`** - строгий режим проверки типов.
 - **`tests:linux`** - юнит-тесты pytest без настоящих браузеров
   (default uv+python image, фильтр `-m "not macos"`).
 - **`tests:linux-browsers-healthcheck`** - chrome, firefox, edge,
@@ -248,8 +248,8 @@ tquality-py-selenium = { index = "tquality" }
 
 ```
 tquality-py-selenium/
-├── .gitlab-ci.yml             # CI: mypy + pytest, на тег - publish-pypi/publish/mirror-to-github
-├── pyproject.toml             # конфиг проекта, mypy, зависимости (core - с PyPI)
+├── .gitlab-ci.yml             # CI: ty + pytest, на тег - publish-pypi/publish/mirror-to-github
+├── pyproject.toml             # конфиг проекта, ty, зависимости (core - с PyPI)
 ├── schema/
 │   └── config.schema.json     # JSON-схема SeleniumConfig (публикуется через jsDelivr)
 ├── scripts/

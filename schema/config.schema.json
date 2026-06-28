@@ -121,6 +121,18 @@
       "title": "LogChannelConfig",
       "type": "object"
     },
+    "LogLevelName": {
+      "description": "Уровень стандартного `logging` для обработчика лога.\n\nСовпадает с именами уровней `logging`; значение передаётся в\n`Handler.setLevel(...)` как есть.",
+      "enum": [
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL"
+      ],
+      "title": "LogLevelName",
+      "type": "string"
+    },
     "LogMode": {
       "description": "Когда прикреплять собранный лог к шагу / тесту.",
       "enum": [
@@ -130,6 +142,44 @@
       ],
       "title": "LogMode",
       "type": "string"
+    },
+    "LogStream": {
+      "description": "Куда направлять консольный (stream) обработчик логов теста.\n\n`stdout` / `stderr` - соответствующий стандартный поток; `none` -\nотключить stream-обработчик вовсе (лог пишется только в файл, если\nтот включён).",
+      "enum": [
+        "stdout",
+        "stderr",
+        "none"
+      ],
+      "title": "LogStream",
+      "type": "string"
+    },
+    "LoggingConfig": {
+      "description": "Настройки файлового и консольного обработчиков лога теста.\n\nКаждый тест получает свой `logging.Logger` (см. `Logger`), к которому\nподключены до двух обработчиков: файловый (пишет `<тест>.log` в\n`log_dir`) и консольный (stdout/stderr). Уровни обработчиков\nнезависимы - можно слать в консоль только `WARNING+`, а в файл -\nвесь `DEBUG`.\n\nДрайверные пакеты расширяют этот блок дополнительными каналами\n(например, `tquality-py-appium` добавляет `device`/`network`-логи\nустройства), наследуясь от `LoggingConfig`.",
+      "properties": {
+        "stream": {
+          "$ref": "#/$defs/LogStream",
+          "default": "stderr",
+          "description": "Куда писать консольный обработчик: `stdout`, `stderr` или `none` (отключить консольный вывод, оставить только файл)."
+        },
+        "stream_level": {
+          "$ref": "#/$defs/LogLevelName",
+          "default": "INFO",
+          "description": "Минимальный уровень сообщений для консольного обработчика (`DEBUG`/`INFO`/`WARNING`/`ERROR`/`CRITICAL`). Игнорируется при `stream: none`."
+        },
+        "file_enabled": {
+          "default": true,
+          "description": "Писать ли лог теста в файл `<тест>.log` внутри `log_dir`. Отключите, если нужен только консольный вывод.",
+          "title": "File Enabled",
+          "type": "boolean"
+        },
+        "file_level": {
+          "$ref": "#/$defs/LogLevelName",
+          "default": "INFO",
+          "description": "Минимальный уровень сообщений для файлового обработчика (`DEBUG`/`INFO`/`WARNING`/`ERROR`/`CRITICAL`). Игнорируется при `file_enabled: false`."
+        }
+      },
+      "title": "LoggingConfig",
+      "type": "object"
     },
     "LogsConfig": {
       "description": "Структура логов BiDi для прикрепления к шагам и тестам.",
@@ -222,6 +272,10 @@
       "minLength": 1,
       "title": "Log Dir",
       "type": "string"
+    },
+    "logging": {
+      "$ref": "#/$defs/LoggingConfig",
+      "description": "Обработчики лога теста: консольный поток (`stream`: stdout/stderr/none) и файл `<тест>.log` в `log_dir` (`file_enabled`), каждый со своим уровнем (`stream_level` / `file_level`). Драйверные пакеты добавляют сюда свои каналы."
     },
     "highlight_elements": {
       "default": false,

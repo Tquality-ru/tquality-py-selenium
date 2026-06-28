@@ -1,4 +1,4 @@
-from tquality_selenium.elements.base_element import BaseElement
+from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.button import Button
 from tquality_selenium.elements.by import By
 from tquality_selenium.elements.by_kind import ByKind
@@ -12,7 +12,7 @@ from tquality_selenium.elements.input import Input
 from tquality_selenium.elements.label import Label
 
 __all__ = [
-    "BaseElement",
+    "Element",
     "Button",
     "By",
     "ByKind",

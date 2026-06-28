@@ -95,6 +95,7 @@ class BrowserService:
             self._apply_arguments(ff_opts, active.arguments)
             if bidi:
                 self._enable_bidi(ff_opts)
+            self._normalize_page_load_strategy(ff_opts)
             driver = webdriver.Firefox(options=ff_opts)
         elif browser is BrowserType.EDGE:
             edge_opts = EdgeOptions()
@@ -104,6 +105,7 @@ class BrowserService:
             self._apply_linux_docker_chromium_flags(edge_opts)
             if bidi:
                 self._enable_bidi(edge_opts)
+            self._normalize_page_load_strategy(edge_opts)
             driver = webdriver.Edge(options=edge_opts)
         elif browser is BrowserType.SAFARI:
             # Safari не поддерживает headless; игнорируем флаг. BiDi в
@@ -115,6 +117,7 @@ class BrowserService:
             safari_opts = SafariOptions()
             if bidi:
                 self._enable_bidi(safari_opts)
+            self._normalize_page_load_strategy(safari_opts)
             driver = webdriver.Safari(options=safari_opts)
         elif browser is BrowserType.UNDETECTED_CHROME:
             import undetected_chromedriver as uc
@@ -146,6 +149,7 @@ class BrowserService:
             # после старта (агрессивное управление процессом), сессия не
             # успевает подняться. Документировано в UC discussion #2282
             # и issue #2186.
+            self._normalize_page_load_strategy(uc_opts)
             driver = uc.Chrome(
                 options=uc_opts,
                 driver_executable_path=chromedriver_path,
@@ -159,6 +163,7 @@ class BrowserService:
             self._apply_linux_docker_chromium_flags(ch_opts)
             if bidi:
                 self._enable_bidi(ch_opts)
+            self._normalize_page_load_strategy(ch_opts)
             driver = webdriver.Chrome(options=ch_opts)
         else:
             raise ValueError(f"Неподдерживаемый тип браузера: {browser!r}")
@@ -200,6 +205,7 @@ class BrowserService:
             self._enable_bidi(opts)
         for cap_key, cap_value in cfg.capabilities.model_dump(exclude_none=True).items():
             opts.set_capability(cap_key, cap_value)
+        self._normalize_page_load_strategy(opts)
         driver = webdriver.Remote(command_executor=cfg.remote_url, options=opts)
         driver.implicitly_wait(0)
         driver.set_page_load_timeout(active.page_load_timeout)
@@ -357,6 +363,19 @@ class BrowserService:
             shutil.copy2(sm_path, own_path)
             own_path.chmod(0o755)
         return str(own_path)
+
+    @staticmethod
+    def _normalize_page_load_strategy(opts: ArgOptions) -> None:
+        """Привести `pageLoadStrategy` к плоской строке перед отправкой на Grid.
+
+        Selenium хранит `page_load_strategy` как вариант `(str, Enum)`
+        `PageLoadStrategy`; на части рантаймов он сериализуется в
+        `"PageLoadStrategy.normal"` вместо `"normal"`, и Grid-node отвергает
+        capability (`invalid 'pageLoadStrategy'`). Берём `.value`, чтобы в
+        дамп ушла валидная строка.
+        """
+        pls = opts.page_load_strategy
+        opts.page_load_strategy = getattr(pls, "value", pls)
 
     @staticmethod
     def _enable_bidi(opts: ArgOptions) -> None:

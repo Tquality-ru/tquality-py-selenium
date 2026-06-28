@@ -1,6 +1,6 @@
 """Lazy-proxy к Shadow DOM элемента-хоста.
 
-`BaseElement.shadow_root` отдаёт `ShadowRootProxy`, а не сырой
+`Element.shadow_root` отдаёт `ShadowRootProxy`, а не сырой
 `selenium.webdriver.remote.shadowroot.ShadowRoot`: каждый дочерний элемент,
 полученный через `proxy.get_*(...)`, на каждом `_find()` заново обходит
 цепочку shadow root'ов от корня - stale-reference исключён, цепочки
@@ -32,7 +32,7 @@ from tquality_selenium.elements.input import Input
 from tquality_selenium.elements.label import Label
 
 if TYPE_CHECKING:
-    from tquality_selenium.elements.base_element import BaseElement
+    from tquality_selenium.elements.element import Element
     from tquality_selenium.elements.by import By
 
 
@@ -40,7 +40,7 @@ class ShadowRootProxy:
     """Ленивый прокси: shadow root хост-элемента + типизированные getter'ы.
 
     Принимает `parent_find` - callable, возвращающий хост-элемент при каждом
-    вызове. Возвращаемые getter'ами `BaseElement`-инстансы переопределяют
+    вызове. Возвращаемые getter'ами `Element`-инстансы переопределяют
     свой `_find` так, чтобы при каждом вызове он шёл через
     `parent_find().shadow_root.find_element(*by)`. Цепочки нескольких
     shadow root'ов наслаиваются через property `shadow_root` у каждого
@@ -59,21 +59,21 @@ class ShadowRootProxy:
 
         return _resolve
 
-    def get_element[E: BaseElement](
+    def get_element[E: Element](
         self,
         element_cls: type[E],
         by: By,
         name: str = "",
         state: StateSpec = ElementState.DISPLAYED,
     ) -> E:
-        """Generic getter - возвращает экземпляр любого `BaseElement`-наследника.
+        """Generic getter - возвращает экземпляр любого `Element`-наследника.
 
         `_find` инстанса перепривязан к shadow-резолверу: цепочка
         host -> shadow_root -> find_element(by) выполняется при каждом
         обращении, stale-reference исключён.
         """
         elem = element_cls(by, name, state=state)
-        elem._find = self._shadow_find(by)  # type: ignore[method-assign]
+        elem._find = self._shadow_find(by)  # type: ignore[method-assign]  # ty:ignore[invalid-assignment]
         return elem
 
     def get_button(

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from tquality_selenium.browser import BrowserService
 from tquality_selenium.container import SeleniumServices
-from tquality_selenium.elements.base_element import BaseElement
+from tquality_selenium.elements.element import Element
 from tquality_selenium.services.element_factory import ElementFactory
 
 
@@ -14,7 +14,7 @@ class BaseForm:
     Тесты обращаются к бизнес-методам формы, а не к элементам напрямую.
     """
 
-    def __init__(self, unique_element: BaseElement, name: str = "") -> None:
+    def __init__(self, unique_element: Element, name: str = "") -> None:
         self._unique_element = unique_element
         self._name = name or self.__class__.__name__
 
@@ -41,7 +41,7 @@ class BaseForm:
         return url
 
     @property
-    def unique_element(self) -> BaseElement:
+    def unique_element(self) -> Element:
         return self._unique_element
 
     @property

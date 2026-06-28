@@ -32,60 +32,60 @@ _HEALTHCHECK_URL = (
     [
         pytest.param(
             BrowserType.CHROME, True,
-            Capabilities(platform_name="mac", browser_version="stable"),
+            Capabilities(platform_name="mac", browser_version="stable"),  # ty:ignore[unknown-argument]
             id="chrome-mac",
             marks=[pytest.mark.chrome, pytest.mark.macos],
         ),
         pytest.param(
             BrowserType.CHROME, True,
-            Capabilities(platform_name="linux", browser_version="stable"),
+            Capabilities(platform_name="linux", browser_version="stable"),  # ty:ignore[unknown-argument]
             id="chrome-linux",
             marks=[pytest.mark.chrome, pytest.mark.linux],
         ),
         pytest.param(
             BrowserType.CHROME, True,
-            Capabilities(platform_name="windows", browser_version="stable"),
+            Capabilities(platform_name="windows", browser_version="stable"),  # ty:ignore[unknown-argument]
             id="chrome-windows",
             marks=[pytest.mark.chrome, pytest.mark.windows],
         ),
         pytest.param(
-            BrowserType.FIREFOX, True, Capabilities(platform_name="mac"),
+            BrowserType.FIREFOX, True, Capabilities(platform_name="mac"),  # ty:ignore[unknown-argument]
             id="firefox-mac",
             marks=[pytest.mark.firefox, pytest.mark.macos],
         ),
         pytest.param(
-            BrowserType.FIREFOX, True, Capabilities(platform_name="linux"),
+            BrowserType.FIREFOX, True, Capabilities(platform_name="linux"),  # ty:ignore[unknown-argument]
             id="firefox-linux",
             marks=[pytest.mark.firefox, pytest.mark.linux],
         ),
         pytest.param(
-            BrowserType.FIREFOX, True, Capabilities(platform_name="windows"),
+            BrowserType.FIREFOX, True, Capabilities(platform_name="windows"),  # ty:ignore[unknown-argument]
             id="firefox-windows",
             marks=[pytest.mark.firefox, pytest.mark.windows],
         ),
         pytest.param(
-            BrowserType.EDGE, True, Capabilities(platform_name="mac"),
+            BrowserType.EDGE, True, Capabilities(platform_name="mac"),  # ty:ignore[unknown-argument]
             id="edge-mac",
             marks=[pytest.mark.edge, pytest.mark.macos],
         ),
         pytest.param(
-            BrowserType.EDGE, True, Capabilities(platform_name="linux"),
+            BrowserType.EDGE, True, Capabilities(platform_name="linux"),  # ty:ignore[unknown-argument]
             id="edge-linux",
             marks=[pytest.mark.edge, pytest.mark.linux],
         ),
         pytest.param(
-            BrowserType.EDGE, True, Capabilities(platform_name="windows"),
+            BrowserType.EDGE, True, Capabilities(platform_name="windows"),  # ty:ignore[unknown-argument]
             id="edge-windows",
             marks=[pytest.mark.edge, pytest.mark.windows],
         ),
         pytest.param(
-            BrowserType.SAFARI, False, Capabilities(platform_name="mac"),
+            BrowserType.SAFARI, False, Capabilities(platform_name="mac"),  # ty:ignore[unknown-argument]
             id="safari-mac",
             marks=[pytest.mark.safari, pytest.mark.macos],
         ),
         pytest.param(
             BrowserType.UNDETECTED_CHROME, True,
-            Capabilities(platform_name="windows", browser_version="undetected"),
+            Capabilities(platform_name="windows", browser_version="undetected"),  # ty:ignore[unknown-argument]
             id="undetected-windows",
             marks=[pytest.mark.undetected, pytest.mark.windows],
         ),
@@ -100,7 +100,7 @@ def test_browsers_smoke(
     cfg = SeleniumConfig(
         browser=browser,
         capabilities=capabilities,
-        **{browser.value.replace("-", "_"): block},  # type: ignore[arg-type]
+        **{browser.value.replace("-", "_"): block},  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
     )
     try:
         service = BrowserService(cfg)
