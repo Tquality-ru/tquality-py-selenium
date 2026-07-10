@@ -11,7 +11,7 @@ callable-резолвер элемента и выполняет действи�
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Iterator
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterator
 
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
@@ -185,45 +185,79 @@ class ElementJsActions:
             """
             self._driver.execute_script(script, element)
 
+    # outline ставится через !important: сайты нередко задают собственный
+    # `outline`/`outline-color` (в т.ч. `!important`) на inputs и ссылках, и
+    # без приоритета наш red переопределяется и рамка рендерится невидимой.
+    # language=js
+    _APPLY_HIGHLIGHT_JS: ClassVar[str] = """
+    var el = arguments[0];
+    el.setAttribute('data-tq-highlight', '1');
+    el.__tqOutline = el.style.getPropertyValue('outline');
+    el.__tqOutlinePrio = el.style.getPropertyPriority('outline');
+    el.__tqOffset = el.style.getPropertyValue('outline-offset');
+    el.__tqOffsetPrio = el.style.getPropertyPriority('outline-offset');
+    el.style.setProperty('outline', '3px solid red', 'important');
+    el.style.setProperty('outline-offset', '-1px', 'important');
+    """
+    # Снятие идёт document-wide по маркеру - переживает навигацию/перерендер:
+    # устаревший элемент просто не находится, а не роняет ошибку.
+    # language=js
+    _CLEAR_HIGHLIGHT_JS: ClassVar[str] = """
+    var marked = document.querySelectorAll('[data-tq-highlight]');
+    for (var i = 0; i < marked.length; i++) {
+        var el = marked[i];
+        el.style.removeProperty('outline');
+        el.style.removeProperty('outline-offset');
+        if (el.__tqOutline) {
+            el.style.setProperty('outline', el.__tqOutline, el.__tqOutlinePrio || '');
+        }
+        if (el.__tqOffset) {
+            el.style.setProperty('outline-offset', el.__tqOffset, el.__tqOffsetPrio || '');
+        }
+        delete el.__tqOutline; delete el.__tqOutlinePrio;
+        delete el.__tqOffset; delete el.__tqOffsetPrio;
+        el.removeAttribute('data-tq-highlight');
+    }
+    """
+
+    def _apply_highlight(self, element: WebElement) -> None:
+        try:
+            self._driver.execute_script(self._APPLY_HIGHLIGHT_JS, element)
+        except Exception as exc:  # noqa: BLE001
+            self._log.warning("Не удалось подсветить элемент: %s", exc)
+
+    def _clear_highlights(self) -> None:
+        try:
+            self._driver.execute_script(self._CLEAR_HIGHLIGHT_JS)
+        except Exception as exc:  # noqa: BLE001
+            self._log.warning("Не удалось снять highlight: %s", exc)
+
     @contextmanager
     def highlight(self) -> Iterator[None]:
-        """Обвести элемент красной рамкой на время контекста."""
-        element = self._find()
-        # language=js
-        add_script = """
-        var el = arguments[0];
-        el.__oldOutline = el.style.outline;
-        el.__oldOutlineOffset = el.style.outlineOffset;
-        el.style.outline = '3px solid red';
-        el.style.outlineOffset = '-1px';
+        """Обвести элемент красной рамкой на время контекста (scoped).
+
+        Рамка ставится через `!important`, чтобы её не переопределяли стили
+        сайта, и снимается по выходе из контекста.
         """
-        # language=js
-        remove_script = """
-        var el = arguments[0];
-        el.style.outline = el.__oldOutline || '';
-        el.style.outlineOffset = el.__oldOutlineOffset || '';
-        delete el.__oldOutline;
-        delete el.__oldOutlineOffset;
-        """
-        self._driver.execute_script(add_script, element)
+        self._apply_highlight(self._find())
         try:
             yield
         finally:
-            try:
-                self._driver.execute_script(remove_script, element)
-            except Exception as exc:  # noqa: BLE001
-                # После действия элемент мог исчезнуть (навигация,
-                # перерендер). Не фейлим тест, но не молчим - пусть
-                # будет видно в логах.
-                self._log.warning(
-                    "Не удалось снять highlight (элемент исчез?): %s", exc,
-                )
+            self._clear_highlights()
 
     @contextmanager
     def maybe_highlight(self) -> Iterator[None]:
-        """Подсветить элемент, если в конфиге `highlight_elements=True`."""
-        if self._config.highlight_elements:
-            with self.highlight():
-                yield
-        else:
+        """Подсветить элемент, если в конфиге `highlight_elements=True`.
+
+        Рамка снимается не в конце текущего действия, а перед СЛЕДУЮЩИМ:
+        подсветка «залипает» на последнем затронутом элементе, поэтому её
+        видно в паузах между действиями - в частности на screencast-видео.
+        Снятие идёт document-wide по маркеру `data-tq-highlight`, поэтому
+        переживает навигацию и перерендер.
+        """
+        if not self._config.highlight_elements:
             yield
+            return
+        self._clear_highlights()
+        self._apply_highlight(self._find())
+        yield
