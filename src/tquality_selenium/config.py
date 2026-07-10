@@ -18,6 +18,7 @@
 - Edge - Windows и macOS.
 - Safari - только macOS (headless не поддерживается, флаг игнорируется).
 """
+
 from __future__ import annotations
 
 from enum import Enum, StrEnum
@@ -93,7 +94,9 @@ class Capabilities(BaseModel):
     """
 
     model_config = ConfigDict(
-        extra="allow", populate_by_name=True, serialize_by_alias=True,
+        extra="allow",
+        populate_by_name=True,
+        serialize_by_alias=True,
     )
 
     platform_name: str | None = Field(

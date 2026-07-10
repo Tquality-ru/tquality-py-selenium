@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING
 
 from tquality_core import LazyElements as _CoreLazyElements
 
-from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.by import By
+from tquality_selenium.elements.element import Element
 
 if TYPE_CHECKING:
     from tquality_selenium.browser import BrowserService

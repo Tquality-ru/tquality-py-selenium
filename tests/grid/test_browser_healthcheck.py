@@ -22,70 +22,66 @@ from tquality_selenium import BrowserService, BrowserType, Capabilities, Seleniu
 from tquality_selenium.browser import BrowserNotSupportedError
 from tquality_selenium.config import BrowserConfig
 
-_HEALTHCHECK_URL = (
-    "data:text/html,<html><head><title>healthcheck</title>"
-    "</head><body>ok</body></html>"
-)
 
 @pytest.mark.parametrize(
     ("browser", "headless", "capabilities"),
     [
         pytest.param(
             BrowserType.CHROME, True,
-            Capabilities(platform_name="mac", browser_version="stable"),  # ty:ignore[unknown-argument]
+            Capabilities(platform_name="mac", browser_version="stable"),
             id="chrome-mac",
             marks=[pytest.mark.chrome, pytest.mark.macos],
         ),
         pytest.param(
             BrowserType.CHROME, True,
-            Capabilities(platform_name="linux", browser_version="stable"),  # ty:ignore[unknown-argument]
+            Capabilities(platform_name="linux", browser_version="stable"),
             id="chrome-linux",
             marks=[pytest.mark.chrome, pytest.mark.linux],
         ),
         pytest.param(
             BrowserType.CHROME, True,
-            Capabilities(platform_name="windows", browser_version="stable"),  # ty:ignore[unknown-argument]
+            Capabilities(platform_name="windows", browser_version="stable"),
             id="chrome-windows",
             marks=[pytest.mark.chrome, pytest.mark.windows],
         ),
         pytest.param(
-            BrowserType.FIREFOX, True, Capabilities(platform_name="mac"),  # ty:ignore[unknown-argument]
+            BrowserType.FIREFOX, True, Capabilities(platform_name="mac"),
             id="firefox-mac",
             marks=[pytest.mark.firefox, pytest.mark.macos],
         ),
         pytest.param(
-            BrowserType.FIREFOX, True, Capabilities(platform_name="linux"),  # ty:ignore[unknown-argument]
+            BrowserType.FIREFOX, True, Capabilities(platform_name="linux"),
             id="firefox-linux",
             marks=[pytest.mark.firefox, pytest.mark.linux],
         ),
         pytest.param(
-            BrowserType.FIREFOX, True, Capabilities(platform_name="windows"),  # ty:ignore[unknown-argument]
+            BrowserType.FIREFOX, True, Capabilities(platform_name="windows"),
             id="firefox-windows",
             marks=[pytest.mark.firefox, pytest.mark.windows],
         ),
         pytest.param(
-            BrowserType.EDGE, True, Capabilities(platform_name="mac"),  # ty:ignore[unknown-argument]
+            BrowserType.EDGE, True, Capabilities(platform_name="mac"),
             id="edge-mac",
             marks=[pytest.mark.edge, pytest.mark.macos],
         ),
         pytest.param(
-            BrowserType.EDGE, True, Capabilities(platform_name="linux"),  # ty:ignore[unknown-argument]
+            BrowserType.EDGE, True, Capabilities(platform_name="linux"),
             id="edge-linux",
             marks=[pytest.mark.edge, pytest.mark.linux],
         ),
         pytest.param(
-            BrowserType.EDGE, True, Capabilities(platform_name="windows"),  # ty:ignore[unknown-argument]
+            BrowserType.EDGE, True, Capabilities(platform_name="windows"),
             id="edge-windows",
             marks=[pytest.mark.edge, pytest.mark.windows],
         ),
         pytest.param(
-            BrowserType.SAFARI, False, Capabilities(platform_name="mac"),  # ty:ignore[unknown-argument]
+            BrowserType.SAFARI, False, Capabilities(platform_name="mac"),
             id="safari-mac",
             marks=[pytest.mark.safari, pytest.mark.macos],
         ),
         pytest.param(
             BrowserType.UNDETECTED_CHROME, True,
-            Capabilities(platform_name="windows", browser_version="undetected"),  # ty:ignore[unknown-argument]
+            Capabilities(platform_name="windows", browser_version="undetected"),
             id="undetected-windows",
             marks=[pytest.mark.undetected, pytest.mark.windows],
         ),
@@ -95,6 +91,7 @@ def test_browsers_smoke(
     browser: BrowserType,
     headless: bool,
     capabilities: Capabilities,
+    page_url: str,
 ) -> None:
     block = BrowserConfig(headless=headless)
     cfg = SeleniumConfig(
@@ -109,7 +106,7 @@ def test_browsers_smoke(
         # этот guard не срабатывает (там ОС определяется нодой), и кейс запускается.
         pytest.skip(str(exc))
     try:
-        service.open(_HEALTHCHECK_URL)
+        service.open(page_url)
         assert "healthcheck" in service.driver.title
     finally:
         service.quit()

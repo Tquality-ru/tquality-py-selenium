@@ -89,19 +89,17 @@ dependencies = [
 import pytest
 from tquality_selenium import SeleniumServices
 
-# Композиционный корень. config_dir по умолчанию - каталог этого файла,
-# так что config.json5 рядом с conftest.py подхватится независимо
-# от текущего рабочего каталога.
-SeleniumServices.setup()
+# config.json5 рядом с тестом подхватывается автоматически: per-test плагин
+# ядра нацеливает поиск конфигов на каталог теста. setup() не нужен.
 
 
 @pytest.fixture(autouse=True)
 def browser():
-    SeleniumServices.browser()
     yield
-    SeleniumServices.browser().quit()
-    SeleniumServices.browser.reset()
-    SeleniumServices.logger.reset()
+    if SeleniumServices.is_browser_started():
+        SeleniumServices.browser.quit()  # закрыть WebDriver-сессию
+    # browser / config / logger / waiter - TestContextSingleton: инстансы
+    # сбрасываются под каждый тест бандл-плагином static-di.
 ```
 
 ```python
@@ -151,41 +149,51 @@ class LoginPage(BaseForm):
 
 ## Расширение через наследование от `SeleniumServices`
 
-Чтобы добавить свои службы, следует унаследоваться от `SeleniumServices`.
-Область действия определяется типом поставщика `dependency-injector`
-(+ где сбрасывается в фикстурах):
+Чтобы добавить свои службы, унаследуйтесь от `SeleniumServices` с `@copy`
+(чтобы переопределения перевязывали унаследованные зависимости). Область
+действия определяется типом поставщика `static-dependency-injector`;
+поставщики объявляются типизированными атрибутами и **читаются как значения**
+(`Services.api_client`, а не `.api_client()`):
 
 | Область действия     | Поставщик                      | Время жизни                                    |
 | -------------------- | ------------------------------ | ---------------------------------------------- |
-| **глобальная**       | `providers.Singleton`          | Один экземпляр на весь процесс pytest.         |
-| **уровня сессии**    | `providers.ContextLocalSingleton` + сброс в фикстуре `scope="session"` | Один экземпляр на сессию, сбрасывается на выходе. |
-| **уровня теста**     | `providers.ContextLocalSingleton` + сброс в фикстуре `autouse=True`    | Новый экземпляр на каждый тест. |
-| **одноразовая**      | `providers.Factory`            | Новый экземпляр на каждый вызов `services.my_service()`. |
+| **глобальная**       | `Singleton`                    | Один экземпляр на весь процесс pytest.         |
+| **уровня теста**     | `TestContextSingleton`         | Новый экземпляр на каждый тест; авто-сброс бандл-плагином. |
+| **уровня сессии**    | `ContextLocalSingleton` + сброс в фикстуре `scope="session"` | Один экземпляр на contextvars-контекст, сброс на выходе. |
+| **одноразовая**      | `Factory`                      | Свежий экземпляр на каждое обращение.          |
 
 ```python
 # my_project/services.py
-from dependency_injector import providers
-from tquality_selenium import SeleniumServices
+from static_dependency_injector.containers import copy
+from static_dependency_injector.static_providers import (
+    ContextLocalSingleton,
+    Factory,
+    Singleton,
+    TestContextSingleton,
+)
+from tquality_selenium import BrowserService, SeleniumServices
 
-from my_project.clients import ApiClient, CurrentUser, TempDirFactory
+from my_project.clients import ApiClient, CurrentUser, SessionData, TempDirFactory
 
 
+@copy(SeleniumServices)
 class ProjectServices(SeleniumServices):
     # Глобальная: один клиент API на процесс.
-    api_client = providers.Singleton(ApiClient)
+    api_client: ApiClient = Singleton(ApiClient)
 
-    # Уровня сессии: данные, общие для всех тестов одного прогона.
-    session_data = providers.ContextLocalSingleton(SessionData)
+    # Уровня теста: свежее состояние на каждый тест, авто-сброс бандл-плагином.
+    current_user: CurrentUser = TestContextSingleton(CurrentUser)
 
-    # Уровня теста: новое состояние на каждый тест.
-    current_user = providers.ContextLocalSingleton(CurrentUser)
+    # Уровня сессии: данные на весь прогон, сброс в session-фикстуре.
+    session_data: SessionData = ContextLocalSingleton(SessionData)
 
     # Одноразовая: каждое обращение - свежий экземпляр.
-    temp_dir = providers.Factory(TempDirFactory)
+    temp_dir: TempDirFactory = Factory(TempDirFactory)
 
-    # Замена существующей службы (ссылка на родительский config):
-    # browser = providers.ContextLocalSingleton(
-    #     MyBrowserService, config=SeleniumServices.config,
+    # Замена существующей службы (перевязывается на родительский config через
+    # @copy; ссылка на унаследованный провайдер - `.provider.config`):
+    # browser: BrowserService = TestContextSingleton(
+    #     MyBrowserService, config=SeleniumServices.provider.config,
     # )
 ```
 
@@ -195,30 +203,22 @@ import pytest
 
 from my_project.services import ProjectServices
 
-ProjectServices.setup()
 
-
-@pytest.fixture(autouse=True)
-def _reset_test_scoped_services():
-    """Экземпляры ContextLocalSingleton уровня теста сбрасываются после каждого теста."""
-    yield
-    ProjectServices.current_user.reset()
+# current_user - TestContextSingleton: авто-сброс под каждый тест, фикстура не нужна.
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _reset_session_scoped_services():
-    """Экземпляры ContextLocalSingleton уровня сессии сбрасываются в конце сессии pytest."""
+    """ContextLocalSingleton-провайдеры уровня сессии сбрасываются в конце прогона."""
     yield
-    ProjectServices.session_data.reset()
+    ProjectServices.provider.session_data.reset()
 
 
 @pytest.fixture(autouse=True)
 def browser():
-    ProjectServices.browser()
     yield
-    ProjectServices.browser().quit()
-    ProjectServices.browser.reset()
-    ProjectServices.logger.reset()
+    if ProjectServices.is_browser_started():
+        ProjectServices.browser.quit()  # browser - testlocal, инстанс авто-сбрасывается
 ```
 
 Получить службу по типу, без привязки к имени поставщика - удобно

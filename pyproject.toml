@@ -31,10 +31,10 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "tquality-py-core[screencast]>=0.2.0",
+    "tquality-py-core[screencast]>=0.2.4",
     "selenium>=4.44.0",
     "pydantic==2.13.4",
-    "dependency-injector>=4.49",
+    "static-dependency-injector>=0.3.8",
     "undetected-chromedriver>=3.5",
     "setuptools>=60",
     "pytest-xdist>=3.8.0",
@@ -93,11 +93,12 @@ only-include = [
     "pyproject.toml",
 ]
 
-[tool.pytest.ini_options]
+[tool.pytest]
 # 120 секунд должно с запасом покрывать любой smoke (поднять браузер +
 # открыть data-URL); если тест висит дольше - почти наверняка проблема
 # в окружении/драйвере, а не в логике, и job упирается в долгий timeout.
-timeout = 120
+# Нативная таблица типизирует значения; timeout у pytest-timeout - строковый ini.
+timeout = "120"
 timeout_method = "thread"
 markers = [
     "macos: тесты требуют macOS-runner (все 5 браузеров установлены)",
@@ -125,13 +126,17 @@ error-on-warning = true
 allowed-unresolved-imports = [
     "undetected_chromedriver",
     "undetected_chromedriver.**",
-    "dependency_injector",
-    "dependency_injector.**",
     "PIL",
     "PIL.**",
     "imageio",
     "imageio.**",
 ]
+
+[tool.ty.rules]
+# Каждый переопределяющий метод обязан нести `@typing.override` - явный
+# override ловит рассинхрон с базовым классом (опечатка в имени, ушедшая
+# сигнатура) на этапе проверки типов.
+missing-override-decorator = "error"
 
 [tool.ruff]
 exclude = [".*", "__pycache__"]

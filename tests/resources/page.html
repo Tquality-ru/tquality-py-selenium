@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <!-- title-smoke: тест проверяет, что в driver.title есть "healthcheck". -->
+    <title>healthcheck</title>
+  </head>
+  <body>
+    <!-- file-dialog (BiDi): ссылка создаёт detached <input type=file> (никогда
+         не в DOM) и кликает его - сценарий, ради которого нужен BiDi file-dialog,
+         а не send_keys. change-обработчик пишет имя файла в #file-upload-result. -->
+    <a id="file-upload-trigger" href="#">upload</a>
+    <div id="file-upload-result"></div>
+
+    <!-- computed-CSS: стилизованный элемент для js_actions-смоука (читает
+         реальные значения display/opacity/z-index/background-color/color). -->
+    <div
+      id="styled-box"
+      style="display:block;opacity:0.5;background-color:rgb(255,0,0);z-index:42;color:rgb(0,128,0)"
+    >x</div>
+
+    <script>
+      document.getElementById('file-upload-trigger').addEventListener('click', function (event) {
+        event.preventDefault();
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.addEventListener('change', function () {
+          document.getElementById('file-upload-result').textContent =
+            input.files.length ? input.files[0].name : '';
+        });
+        input.click();
+      });
+    </script>
+  </body>
+</html>

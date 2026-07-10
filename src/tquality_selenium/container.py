@@ -1,13 +1,14 @@
 """Composition root: `SeleniumServices`.
 
-Собирает все сервисы фреймворка как DI-контейнер (dependency-injector).
-Любой сервис можно заменить или добавить в подклассе - это основной способ
-адаптировать фреймворк под конкретный проект.
+Собирает все сервисы фреймворка как статический DI-контейнер
+(`static_dependency_injector`, поверх ядрового `CoreServicesABC`). Любой сервис
+можно заменить или добавить в подклассе - это основной способ адаптировать
+фреймворк под конкретный проект.
 
 ### Получение сервиса
 
-По типу, а не по имени провайдера - это позволяет переименовывать
-провайдеры в подклассах, не ломая потребителей:
+По типу, а не по имени провайдера - это позволяет переименовывать провайдеры
+в подклассах, не ломая потребителей:
 
 ```python
 from tquality_selenium import SeleniumServices, BrowserService
@@ -15,63 +16,68 @@ from tquality_selenium import SeleniumServices, BrowserService
 browser = SeleniumServices.get_service(BrowserService)
 ```
 
-`get_service` всегда идет в активный composition root (последний
-`setup()`), поэтому подклассы с переопределенными провайдерами
-работают прозрачно.
+`get_service` резолвит из того контейнера, на котором вызван. Подкласс с
+переопределёнными провайдерами (`@copy`) резолвит СВОИ переопределения через
+наследование - отдельного реестра «активного» контейнера не требуется.
 
-### Расширение: новый сервис
+### Расширение / замена
 
 ```python
 from tquality_selenium import SeleniumServices
-from dependency_injector import providers
+from static_dependency_injector.containers import copy
+from static_dependency_injector.static_providers import Singleton, TestContextSingleton
 
+@copy(SeleniumServices)
 class ProjectServices(SeleniumServices):
-    my_service = providers.Singleton(MyService)
+    my_service: MyService = Singleton(MyService)                       # новый
+    browser: BrowserService = TestContextSingleton(MyBrowserService, config=SeleniumServices.provider.config)  # замена
 ```
 
-### Замена: другая реализация
-
-```python
-class ProjectServices(SeleniumServices):
-    browser = providers.ContextLocalSingleton(
-        MyBrowserService, config=SeleniumServices.config,
-    )
-```
+`@copy` перевязывает унаследованные зависимости на переопределённые слоты
+(напр. `driver`/`logger`/`waiter` начинают смотреть на новый `browser`/`config`),
+поэтому `ProjectServices` самосогласован: `ProjectServices.get_service(...)` и
+`ProjectServices.<провайдер>` резолвят именно проектные реализации.
 
 ### Composition root в conftest.py
+
+`config.json5` рядом с тестом подхватывается автоматически (per-test плагин
+ядра смещает поиск конфигов на директорию теста) - отдельного `setup()` не
+требуется:
 
 ```python
 from my_project.services import ProjectServices
 
-ProjectServices.setup()
-
 
 @pytest.fixture(autouse=True)
 def browser():
-    ProjectServices.browser()
+    ProjectServices.browser
     yield
-    ProjectServices.browser().quit()
-    ProjectServices.browser.reset()
-    ProjectServices.logger.reset()
+    ProjectServices.browser.quit()
 ```
 """
+
 from __future__ import annotations
 
-import contextvars
-import inspect
-from contextlib import contextmanager
+import operator
 from pathlib import Path
-from typing import Any, Iterator, TypeVar
+from typing import Any, TypeVar
 
-from dependency_injector import containers, providers
 from selenium.common.exceptions import (
     NoSuchElementException,
     StaleElementReferenceException,
     TimeoutException,
 )
 from selenium.webdriver.remote.webdriver import WebDriver
-from tquality_core import Logger, PathUtils, set_logger_resolver
-from tquality_core.plugins.per_test_files import register_per_test_rebuilder
+from static_dependency_injector.containers import copy
+from static_dependency_injector.static_providers import (
+    Callable,
+    Delegate,
+    Singleton,
+    TestContextSingleton,
+)
+from tquality_core import Logger
+from tquality_core.di import CoreServices
+from typing_extensions import deprecated
 
 from tquality_selenium.browser import BrowserService
 from tquality_selenium.config import SeleniumConfig
@@ -83,200 +89,122 @@ from tquality_selenium.services.driver_waiter import DriverWaiter
 from tquality_selenium.services.element_factory import ElementFactory
 from tquality_selenium.services.waiter import Waiter
 
-
-def _resolve_driver_from_active() -> WebDriver:
-    """Резолвит WebDriver через активный composition root.
-    Fallback на `SeleniumServices` класс - даёт работать `.override()`
-    в тестах без полной инициализации composition root'а."""
-    active = _resolve_active() or SeleniumServices
-    return active.browser().driver
-
-
-def _resolve_logger_from_active() -> Logger:
-    """Резолвит активный Logger - fallback на `SeleniumServices` класс."""
-    active = _resolve_active() or SeleniumServices
-    return active.logger()
-
 T = TypeVar("T")
 
-# Активный composition root - двухуровневая модель:
-# 1) `_default_services` - process-wide default, ставится `setup()`. Виден из
-#    любого треда; нужен для текущего паттерна "один setup() в conftest.py".
-# 2) `_active_services_ctx` - context-local override, ставится
-#    `override_active(...)`. Изолирован per-context (тред/asyncio task), не
-#    мешает другим контекстам. ContextVar-ы НЕ наследуются дочерними тредами
-#    автоматически: для проброса используйте `contextvars.copy_context()`.
-_default_services: type[SeleniumServices] | None = None
-_active_services_ctx: contextvars.ContextVar[type[SeleniumServices] | None] = (
-    contextvars.ContextVar("_active_services_ctx", default=None)
-)
 
+@copy(CoreServices)
+class SeleniumServices(CoreServices):
+    """Composition root для Selenium-фреймворка.
 
-def _resolve_active() -> type[SeleniumServices] | None:
-    """ContextVar override → process-wide default → None."""
-    return _active_services_ctx.get() or _default_services
+    Наследует ядровый `CoreServices` (спайн `config` → `logger` → `waiter` +
+    авто-регистрацию активного Logger-источника для standalone-`step`) и
+    переопределяет только selenium-дельты: `config` → `SeleniumConfig`, `logger`
+    с screenshot/screencast-провайдерами, `waiter` с selenium-исключениями.
+    `@copy` перевязывает унаследованные зависимости на переопределённые слоты.
+    Driver-bound сервисы (`browser`, `driver`, провайдеры, `driver_waiter`,
+    фабрики) - добавлены здесь.
+    """
 
-
-class SeleniumServices(containers.DeclarativeContainer):
-    """Composition root для Selenium-фреймворка."""
-
-    config: providers.Singleton[SeleniumConfig] = providers.Singleton(SeleniumConfig)
-    browser: providers.ContextLocalSingleton[BrowserService] = (
-        providers.ContextLocalSingleton(BrowserService, config=config)
+    # testlocal: пересобирается под каждый тест. Per-test плагин ядра смещает
+    # `config_search_dir` на директорию теста, а бандл-плагин static-di сбрасывает
+    # testlocal-провайдеры после теста - поэтому `SeleniumConfig()` резолвится под
+    # правильный `config.json5` сам, без ручного rebuild/override.
+    config: SeleniumConfig = TestContextSingleton(SeleniumConfig)
+    # testlocal: браузер живёт ровно один тест (переиспользования сессии между
+    # тестами не бывает). Бандл-плагин static-di дропает инстанс после теста -
+    # ручной reset в фикстуре не нужен, достаточно `.quit()` закрыть сессию.
+    browser: BrowserService = TestContextSingleton(BrowserService, config=config)
+    # WebDriver текущего `browser`, резолвится лениво на каждый доступ (свежая
+    # сессия). Driver-провайдеры ниже берут его через `Delegate(driver)` - так
+    # `@copy` перевязывает их на `browser` подкласса, а `availability_check`
+    # гарантирует, что доступ к `.driver` идёт только при запущенной сессии.
+    driver: WebDriver = Callable(operator.attrgetter("driver"), browser)
+    screenshot_provider: SeleniumScreenshotProvider = Singleton(
+        SeleniumScreenshotProvider,
+        driver_resolver=Delegate(driver),
+        availability_check=BrowserService.is_started,
     )
-    screenshot_provider: providers.Singleton[SeleniumScreenshotProvider] = (
-        providers.Singleton(
-            SeleniumScreenshotProvider,
-            driver_resolver=_resolve_driver_from_active,
-            availability_check=BrowserService.is_started,
-        )
+    screencast_provider: SeleniumScreencastProvider = Singleton(
+        SeleniumScreencastProvider,
+        driver_resolver=Delegate(driver),
+        availability_check=BrowserService.is_started,
+        config=config,
     )
-    screencast_provider: providers.Singleton[SeleniumScreencastProvider] = (
-        providers.Singleton(
-            SeleniumScreencastProvider,
-            driver_resolver=_resolve_driver_from_active,
-            availability_check=BrowserService.is_started,
-            config=config,
-        )
+    # testlocal, как в core: свежий per-test Logger, подхватывает per-test `config`.
+    logger: Logger = TestContextSingleton(
+        Logger,
+        config=config,
+        screenshot_provider=screenshot_provider,
+        screencast_provider=screencast_provider,
     )
-    logger: providers.ContextLocalSingleton[Logger] = (
-        providers.ContextLocalSingleton(
-            Logger,
-            config=config,
-            screenshot_provider=screenshot_provider,
-            screencast_provider=screencast_provider,
-        )
+    waiter: Waiter = TestContextSingleton(
+        Waiter,
+        config=config,
+        logger_resolver=Delegate(logger),
+        ignored_exceptions=(NoSuchElementException, StaleElementReferenceException),
+        default_raise_cls=TimeoutException,
     )
-    waiter: providers.ContextLocalSingleton[Waiter] = (
-        providers.ContextLocalSingleton(
-            Waiter,
-            config=config,
-            logger_resolver=_resolve_logger_from_active,
-            ignored_exceptions=(
-                NoSuchElementException,
-                StaleElementReferenceException,
-            ),
-            default_raise_cls=TimeoutException,
-        )
+    # testlocal: держит per-test `waiter` (значение) + driver-резолвер, поэтому
+    # пересобирается под каждый тест вместе с waiter/browser.
+    driver_waiter: DriverWaiter = TestContextSingleton(
+        DriverWaiter,
+        waiter=waiter,
+        driver_resolver=Delegate(driver),
     )
-    driver_waiter: providers.ContextLocalSingleton[DriverWaiter] = (
-        providers.ContextLocalSingleton(
-            DriverWaiter,
-            waiter=waiter,
-            driver_resolver=_resolve_driver_from_active,
-        )
+    element_factory: ElementFactory = Singleton(ElementFactory)
+    # Инъекция резолверов (не значений) через `Delegate`: driver/logger/waiter -
+    # testlocal, поэтому фабрика/менеджер берут актуальный per-test экземпляр, а
+    # `@copy` перевязывает инъекции на слоты подкласса (следуют за leaf-контейнером).
+    collection_factory: CollectionFactory = Singleton(
+        CollectionFactory,
+        driver_resolver=Delegate(driver),
+        logger_resolver=Delegate(logger),
     )
-    element_factory: providers.Singleton[ElementFactory] = (
-        providers.Singleton(ElementFactory)
-    )
-    collection_factory: providers.Singleton[CollectionFactory] = (
-        providers.Singleton(CollectionFactory)
-    )
-    context_manager: providers.Singleton[ContextManager] = (
-        providers.Singleton(ContextManager)
+    context_manager: ContextManager = Singleton(
+        ContextManager,
+        driver_resolver=Delegate(driver),
+        logger_resolver=Delegate(logger),
+        waiter_resolver=Delegate(waiter),
     )
 
     @classmethod
+    @deprecated(
+        "setup() больше не нужен и ничего не делает: per-test плагин ядра "
+        "смещает config-dir на директорию теста, а config - testlocal "
+        "(резолвится лениво под каждый тест). Уберите вызов."
+    )
     def setup(cls, config_dir: Path | str | None = None) -> None:
-        """Composition root: зарегистрировать контейнер как активный.
+        """No-op (deprecated), оставлен для обратной совместимости.
 
-        ``config_dir`` - стартовая директория поиска ``config.json5``.
-        Если не задана, берется директория вызывающего файла (обычно
-        `conftest.py` проекта). Это устраняет зависимость от CWD pytest:
-        тест можно запускать из корня репо, а конфиги проекта окажутся
-        подхвачены правильно.
-
-        Использует `cls.logger` / `cls.browser`, чтобы подклассы с
-        переопределенными провайдерами работали корректно.
+        Раньше задавал базовую директорию поиска `config.json5`. Теперь это
+        делает per-test плагин ядра (смещает `config_search_dir` на директорию
+        каждого теста), а `config` - testlocal и резолвится лениво под тест -
+        поэтому регистрировать базовую директорию не нужно.
         """
-        if config_dir is None:
-            caller_file = inspect.stack()[1].filename
-            config_dir = Path(caller_file).resolve().parent
-        else:
-            config_dir = Path(config_dir).resolve()
-
-        # Кешируем singleton с правильно разрешенным config.json5.
-        # `BaseConfig` ходит от `PathUtils.config_search_dir()`, поэтому
-        # на момент первой инициализации смещаем её на `config_dir`.
-        with PathUtils.override_config_search_dir(config_dir):
-            cls.config()
-
-        global _default_services
-        _default_services = cls
-        set_logger_resolver(lambda: cls.logger())
-        register_per_test_rebuilder(cls._rebuild_configs_for_test)
-
-    @classmethod
-    def _rebuild_configs_for_test(cls, test_dir: Path) -> Any:
-        """Перестроить `config` под директорию теста.
-
-        `BaseConfig` уже умеет цепочку `config.json5` от стартовой директории
-        к границе проекта - сместив её на `test_dir`, мы получаем
-        `tests/<suite>/config.json5` поверх корневого. Возвращает
-        teardown-колбэк, сбрасывающий override.
-        """
-        with PathUtils.override_config_search_dir(test_dir):
-            new_config = SeleniumConfig()
-        cls.config.override(new_config)
-
-        def _teardown() -> None:
-            cls.config.reset_override()
-
-        return _teardown
-
-    @classmethod
-    @contextmanager
-    def override_active(cls) -> Iterator[None]:
-        """Временно сделать `cls` активным контейнером в текущем контексте.
-
-        Изолировано per-context (тред/asyncio task) через ContextVar - не
-        мешает default'у, выставленному `setup()`, и не виден другим
-        контекстам. Дочерние треды НЕ наследуют override автоматически:
-        пробрасывайте через `contextvars.copy_context().run(...)`.
-
-        ```python
-        with ProjectServices.override_active():
-            run_scenario()  # `get_service` идет в ProjectServices
-        # снаружи - снова default из setup()
-        ```
-        """
-        token = _active_services_ctx.set(cls)
-        try:
-            yield
-        finally:
-            _active_services_ctx.reset(token)
 
     @classmethod
     def get_service(cls, service_type: type[T]) -> T:
-        """Вернуть экземпляр сервиса по типу.
+        """Вернуть экземпляр сервиса по типу из контейнера `cls`.
 
-        Ищет в активном composition root (установленном через `setup()`)
-        провайдер, производящий `service_type` (или его подкласс). Позволяет
-        получать сервисы без привязки к имени провайдера:
+        Ищет провайдер, производящий `service_type` (или его подкласс). Подкласс
+        (`@copy`) резолвит свои переопределения - `ProjectServices.get_service(...)`:
 
         ```python
         browser = SeleniumServices.get_service(BrowserService)
         ```
         """
-        active = _resolve_active() or cls
-        for provider in active.providers.values():
+        for provider in cls.providers.values():
             produces = getattr(provider, "provides", None)
-            if produces is service_type or (
-                isinstance(produces, type) and issubclass(produces, service_type)
-            ):
+            if produces is service_type or (isinstance(produces, type) and issubclass(produces, service_type)):
                 result: Any = provider()
                 return result  # type: ignore[no-any-return]
         raise LookupError(
-            f"В {active.__name__} нет сервиса типа {service_type.__name__}",
+            f"В {cls.__name__} нет сервиса типа {service_type.__name__}",
         )
 
     @classmethod
     def is_browser_started(cls) -> bool:
-        """True, если в текущем контексте запущен WebDriver.
-
-        Проверяет contextvar, выставляемый `BrowserService` при создании
-        и снимаемый при `quit()`.
-        """
+        """True, если в текущем контексте запущен WebDriver."""
         return BrowserService.is_started()
 
 

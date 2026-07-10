@@ -1,5 +1,4 @@
-"""BiDi-действия: driver-scope (`BiDiBrowserActions`) и element-scope
-(`BiDiElementActions`).
+"""BiDi-действия driver-scope (`BiDiBrowserActions`).
 
 Высокоуровневые обёртки + escape-hatch к "сырым" BiDi-модулям Selenium
 (`script` / `network` / `browsing_context` / `input`) для пользовательских
@@ -7,9 +6,8 @@
 с `element.wait.until(custom_condition)`, где фреймворк даёт и удобные
 обёртки, и доступ к низкоуровневому API.
 
-Оба класса получают driver через `driver_getter`-композицию от
-`BrowserService` (см. `BrowserService.bidi` / `Element.bidi_actions`),
-а не реcолвят его через DI-контейнер.
+Driver приходит через `driver_getter`-композицию от `BrowserService`
+(см. `BrowserService.bidi`), а не реcолвится через DI-контейнер.
 """
 from __future__ import annotations
 
@@ -19,15 +17,11 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Iterator
 
-from selenium.webdriver.common.bidi.browsing_context import (
-    BoxClipRectangle,
-    BrowsingContext,
-)
+from selenium.webdriver.common.bidi.browsing_context import BrowsingContext
 from selenium.webdriver.common.bidi.input import FileDialogInfo, Input
 from selenium.webdriver.common.bidi.network import Network
 from selenium.webdriver.common.bidi.script import Script
 from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
 
 if TYPE_CHECKING:
     from tquality_core import Logger
@@ -51,10 +45,9 @@ class BiDiBrowserActions:
 
     @property
     def _log(self) -> Logger:
-        from tquality_core import Logger
+        from tquality_core import step
 
-        from tquality_selenium.container import SeleniumServices
-        return SeleniumServices.get_service(Logger)
+        return step.resolve()
 
     # --- raw BiDi modules (escape hatch) -------------------------------
 
@@ -97,7 +90,11 @@ class BiDiBrowserActions:
         Безопасный аналог JS-инъекции `input.click()` + ручной подмены
         значения - работает в Chrome/Firefox/Edge без CDP.
         """
-        resolved = [str(Path(f).resolve()) for f in files]
+        # Локальные пути резолвим в абсолютные; пути, которых нет на клиенте
+        # (например, node-абсолютный путь на удалённом grid-агенте другой ОС),
+        # прокидываем как есть - их разрешает уже агент, а client-side resolve
+        # на чужой ОС их бы испортил (C:\... -> /cwd/C:\...).
+        resolved = [str(Path(f).resolve()) if Path(f).exists() else str(f) for f in files]
         fired = threading.Event()
         input_mod = self.input
 
@@ -131,45 +128,4 @@ class BiDiBrowserActions:
         return base64.b64decode(b64)
 
 
-class BiDiElementActions:
-    """BiDi-действия, привязанные к элементу через лениво-вычисляемый резолвер."""
-
-    def __init__(
-        self,
-        find: Callable[[], WebElement],
-        driver_getter: Callable[[], WebDriver],
-    ) -> None:
-        self._find = find
-        self._driver_getter = driver_getter
-
-    @property
-    def _driver(self) -> WebDriver:
-        return self._driver_getter()
-
-    @property
-    def _log(self) -> Logger:
-        from tquality_core import Logger
-
-        from tquality_selenium.container import SeleniumServices
-        return SeleniumServices.get_service(Logger)
-
-    def capture_screenshot(self) -> bytes:
-        """Screenshot, обрезанный по bounding-box этого элемента."""
-        self._log.info("BiDi: capture element screenshot")
-        rect = self._find().rect
-        clip = BoxClipRectangle(
-            x=rect["x"], y=rect["y"],
-            width=rect["width"], height=rect["height"],
-        )
-        b64 = self.browsing_context.capture_screenshot(
-            self._driver.current_window_handle, clip=clip,
-        )
-        return base64.b64decode(b64)
-
-    @property
-    def browsing_context(self) -> BrowsingContext:
-        """Shortcut к BiDi `browsing_context`-модулю драйвера."""
-        return self._driver.browsing_context
-
-
-__all__ = ["BiDiBrowserActions", "BiDiElementActions"]
+__all__ = ["BiDiBrowserActions"]

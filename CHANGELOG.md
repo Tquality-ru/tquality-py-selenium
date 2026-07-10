@@ -3,6 +3,122 @@
 Формат по [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по
 [семантическому версионированию](https://semver.org/lang/ru/).
 
+## [0.2.0] - 2026-07-11
+
+### Изменено
+
+- **DI-контейнер `SeleniumServices` переведён на `static-dependency-injector`
+  и наследует ядровый `CoreServices`** (спайн `config` → `logger` → `waiter`),
+  переопределяя только selenium-дельты (`config` → `SeleniumConfig`, `logger`
+  с screenshot/screencast-провайдерами, `waiter` с selenium-исключениями;
+  `@copy` перевязывает зависимости). `waiter` резолвит Logger через ядровый
+  `Delegate(logger)`. Провайдеры объявляются через
+  `static_dependency_injector.static_providers` (`Singleton` /
+  `TestContextSingleton`) и **читаются как значения**, а не вызовы:
+  `SeleniumServices.browser` (не `.browser()`), `SeleniumServices.config` и т.д.
+  Публичный API (`get_service` по типу, `setup`, `is_browser_started`) сохранён.
+  Активный Logger для standalone-`step` регистрируется автоматически
+  (наследуется от `CoreServices`) - ручной `set_logger_resolver` из `setup()`
+  больше не нужен. `config` / `browser` / `logger` / `waiter` / `driver_waiter` -
+  testlocal (`TestContextSingleton`): пересобираются под каждый тест сами
+  (per-test плагин ядра смещает config-dir, бандл-плагин static-di сбрасывает
+  testlocal-провайдеры) - без ручного rebuild/override. Браузер живёт ровно один
+  тест, поэтому фикстуре достаточно `.quit()` (ручной reset провайдера не нужен).
+- **WebDriver резолвится через DI, а не module-level функцию.** Добавлен
+  провайдер `driver` (`Callable(attrgetter("driver"), browser)`);
+  screenshot/screencast-провайдеры и `driver_waiter` берут его через
+  `Delegate(driver)` - так `@copy` перевязывает их на `browser` подкласса.
+  Module-level `_resolve_driver_from_active` удалён.
+- **Реестр «активного» composition root удалён** (`_default_services` /
+  `_active_services_ctx` / `_resolve_active` + `override_active`). Маршрутизация
+  к переопределениям обеспечивается наследованием + `@copy`: `get_service`
+  резолвит из того контейнера, на котором вызван, а `@copy`-подкласс резолвит
+  свои переопределения сам. Module-level объявлений в контейнере не осталось.
+- **`setup()` помечен `@deprecated` и стал no-op.** Базовую директорию поиска
+  `config.json5` задавать больше не нужно: per-test плагин ядра смещает
+  `config_search_dir` на директорию каждого теста, а `config` - testlocal
+  (резолвится лениво под тест). Метод оставлен пустым для обратной
+  совместимости и предупреждает при вызове.
+- **`ContextManager` и `CollectionFactory` получают зависимости через
+  конструктор, а не через service-locator.** Вместо `SeleniumServices.get_service(...)`
+  внутри - инъекция резолверов `driver_resolver` / `logger_resolver`
+  (+ `waiter_resolver` у `ContextManager`) через `Delegate` (сохраняют testlocal-
+  свежесть). Оба - контейнерные singleton'ы, поэтому `@copy` перевязывает
+  инъекции на слоты подкласса: сервисы следуют за leaf-контейнером и больше
+  не обращаются к `SeleniumServices` по имени. Тестируются прямой инъекцией
+  моков (без subclass-подмены `_driver`/`_log`).
+- **Ad-hoc фасады резолвят активный Logger через `step`, а не `get_service`.**
+  `Element` и driver/element-scope фасады (`JsActions`, `ElementJsActions`,
+  `BiDiBrowserActions`, `BiDiElementActions`) берут Logger из `step.resolve()` -
+  того же реестра, что регистрируется `CoreServicesABC.__init_subclass__`
+  («залинкованный последним» контейнер побеждает). Поэтому они видят Logger
+  leaf-контейнера, а не базового `SeleniumServices` (как было с
+  `SeleniumServices.get_service(Logger)`).
+- **JS-действия разделены на driver- и element-scope поверх core.**
+  `services/js_actions.JsActions` (driver-scope) - тонкая selenium-обёртка над
+  `tquality_core.JSActions` (скрипты `CommonJSScripts`), добавлен
+  `_execute_async`. Element-scope вынесен в новый
+  `services/element_js_actions.ElementJsActions` над core `JsElementActions`
+  (`CommonElementJSScripts`); доступ - `element.js_actions`.
+  `get_pseudo_element_style` переехал в core (наследуется). `js_actions`
+  похудел на ~245 строк - логика и JS-скрипты живут в ядре.
+- **BiDi-действия разделены.** `services/bidi_actions` →
+  `services/bidi_browser_actions` (driver-scope) + новый
+  `services/bidi_element_actions` (element-scope). `BiDiElementActions`
+  получает сам `BaseElement` (для `click()`).
+- **Highlight элементов переехал в core.** Логика (`outline` через
+  `!important`, снятие document-wide по маркеру `data-tq-highlight`,
+  «залипание» до следующего действия) теперь в `tquality_core`
+  (`apply_highlight` / `clear_highlights` / scoped `highlight`); selenium
+  `element.js_actions` переиспользует её вместо inline-JS. Поведение то же.
+
+### Добавлено
+
+- **`element.bidi_actions.submit_to_file_dialogue(path)`** — element-scope
+  BiDi-обёртка над `browser.bidi.intercept_file_dialog`: вешает перехватчик
+  file-dialog и кликает элемент (ссылку/кнопку, JS-открывающую диалог).
+  Нужна для detached `<input type=file>`, по которому нельзя `send_keys`.
+  `BiDiElementActions` теперь получает сам `BaseElement` (для `click()`).
+
+### Исправлено
+
+- **`intercept_file_dialog` не портит node-абсолютные пути на cross-OS grid.**
+  Раньше `Path(f).resolve()` резолвил путь на клиенте: windows-путь `C:\...`
+  на linux-клиенте превращался в `/cwd/C:\...`, и нода отвергала `setFiles`.
+  Теперь резолвятся только существующие на клиенте файлы, а node-пути уходят
+  как есть.
+- **Remote Safari получает `SafariRemoteConnection`, а не базовый
+  `RemoteConnection`.** В selenium 4.45 `get_remote_connection` сверяет
+  `browserName` с `"Safari"`, но `SafariOptions` отдаёт `"safari"` - хендлер
+  не находится, Safari уходит на базовый `RemoteConnection` (теряет
+  Safari-команды и сыплет deprecation про `remote_server_addr`).
+  `BrowserService` для remote-Safari подставляет `SafariRemoteConnection`
+  явно (issue заведён в upstream selenium).
+
+### Зависимости
+
+- Убран прямой dep **`dependency-injector`** - теперь транзитивный (через
+  `static-dependency-injector`). Добавлен `static-dependency-injector>=0.3.8`.
+  Пин ядра поднят до `tquality-py-core[screencast]>=0.2.4` (нужны core-highlight,
+  `CoreServicesABC` и слот `test` / `TestContext`, который делает `setup()`
+  ненужным).
+
+### Миграция
+
+- Проектные подклассы, объявлявшие провайдеры через
+  `dependency_injector.providers.*`, переходят на
+  `static_dependency_injector.static_providers.*`. Чтение сервиса-значения:
+  `ProjectServices.browser` вместо `ProjectServices.browser()` (либо
+  `get_service(BrowserService)`, как раньше).
+- `SeleniumServices.override_active()` удалён. Проект, переопределяющий
+  провайдеры, объявляет `@copy`-подкласс и резолвит через него
+  (`ProjectServices.get_service(...)` / `ProjectServices.browser`) - `@copy`
+  делает подкласс самосогласованным. Отдельная регистрация «активного»
+  контейнера (`setup()` как активатор) больше не нужна.
+- Уберите вызовы `SeleniumServices.setup()` / `ProjectServices.setup()` из
+  `conftest.py`: метод стал `@deprecated`-no-op. `config.json5` рядом с тестом
+  подхватывается сам (per-test плагин ядра), настраивать директорию не нужно.
+
 ## [0.1.16] - 2026-06-28
 
 ### Изменено

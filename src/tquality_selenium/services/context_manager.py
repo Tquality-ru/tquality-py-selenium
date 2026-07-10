@@ -21,7 +21,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING, Callable, Iterator
 
 from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from tquality_core import Logger
 
     from tquality_selenium.services.context_waiter import ContextWaiter
+    from tquality_selenium.services.waiter import Waiter
 
 
 class UnknownWindowError(RuntimeError):
@@ -40,18 +41,27 @@ class UnknownWindowError(RuntimeError):
 class ContextManager:
     """Доступ к окнам/фреймам/алертам + переключение между ними."""
 
+    def __init__(
+        self,
+        driver_resolver: Callable[[], WebDriver],
+        logger_resolver: Callable[[], Logger],
+        waiter_resolver: Callable[[], Waiter],
+    ) -> None:
+        # Внедряются резолверы (не значения): driver/logger/waiter - testlocal,
+        # поэтому каждый доступ берёт актуальный per-test экземпляр. `@copy`
+        # перевязывает инъекции на слоты подкласса - сервис следует за
+        # leaf-контейнером без обращения к `SeleniumServices` по имени.
+        self._driver_resolver = driver_resolver
+        self._logger_resolver = logger_resolver
+        self._waiter_resolver = waiter_resolver
+
     @property
     def _driver(self) -> WebDriver:
-        from tquality_selenium.browser import BrowserService
-        from tquality_selenium.container import SeleniumServices
-        return SeleniumServices.get_service(BrowserService).driver
+        return self._driver_resolver()
 
     @property
     def _log(self) -> Logger:
-        from tquality_core import Logger
-
-        from tquality_selenium.container import SeleniumServices
-        return SeleniumServices.get_service(Logger)
+        return self._logger_resolver()
 
     # --- Окна/табы ---
 
@@ -141,9 +151,8 @@ class ContextManager:
     @property
     def wait(self) -> ContextWaiter:
         """Ожидания, привязанные к контексту: `context.wait.for_alert(...)`."""
-        from tquality_selenium.container import SeleniumServices
         from tquality_selenium.services.context_waiter import ContextWaiter
-        return ContextWaiter(SeleniumServices.waiter(), self)
+        return ContextWaiter(self._waiter_resolver(), self)
 
 
 __all__ = ["ContextManager", "UnknownWindowError"]

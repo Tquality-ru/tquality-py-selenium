@@ -20,28 +20,14 @@ from tquality_selenium import (
     StyleProperty,
 )
 from tquality_selenium.config import BrowserConfig
-from tquality_selenium.services.js_actions import ElementJsActions
-
-# Минимальная страница со стилями inline - не зависит от сети.
-_STYLED_PAGE = (
-    "data:text/html,"
-    "<html><body>"
-    "<div id='target' style='"
-    "display:block;"
-    "opacity:0.5;"
-    "background-color:rgb(255,0,0);"
-    "z-index:42;"
-    "color:rgb(0,128,0)"
-    "'>x</div>"
-    "</body></html>"
-)
+from tquality_selenium.services.element_js_actions import ElementJsActions
 
 
 @pytest.mark.macos
 @pytest.mark.linux
 @pytest.mark.windows
 @pytest.mark.chrome
-def test_get_computed_style_reads_real_css_values() -> None:
+def test_get_computed_style_reads_real_css_values(page_url: str) -> None:
     """Single и bulk getters возвращают значения, которые поставил браузер."""
     cfg = SeleniumConfig(
         browser=BrowserType.CHROME,
@@ -49,8 +35,8 @@ def test_get_computed_style_reads_real_css_values() -> None:
     )
     service = BrowserService(cfg)
     try:
-        service.open(_STYLED_PAGE)
-        target = service.driver.find_element("id", "target")
+        service.open(page_url)
+        target = service.driver.find_element("id", "styled-box")
         ja = ElementJsActions(
             find=lambda: target, driver_getter=lambda: service.driver,
         )

@@ -88,19 +88,17 @@ Direct git references require `[tool.hatch.metadata] allow-direct-references = t
 import pytest
 from tquality_selenium import SeleniumServices
 
-# Composition root. config_dir defaults to the directory of this file,
-# so config.json5 next to conftest.py is picked up regardless of the
-# current working directory.
-SeleniumServices.setup()
+# config.json5 next to each test is picked up automatically: a per-test core
+# plugin points config resolution at the test's directory. No setup() needed.
 
 
 @pytest.fixture(autouse=True)
 def browser():
-    SeleniumServices.browser()
     yield
-    SeleniumServices.browser().quit()
-    SeleniumServices.browser.reset()
-    SeleniumServices.logger.reset()
+    if SeleniumServices.is_browser_started():
+        SeleniumServices.browser.quit()  # close the WebDriver session
+    # browser / config / logger / waiter are TestContextSingleton -
+    # instances are auto-reset per test by the bundled static-di plugin.
 ```
 
 ```python
@@ -150,41 +148,50 @@ class LoginPage(BaseForm):
 
 ## Extending via subclasses of `SeleniumServices`
 
-To add custom services, subclass `SeleniumServices`. The scope is
-defined by the `dependency-injector` provider type (and where it is
-reset in fixtures):
+To add custom services, subclass `SeleniumServices` with `@copy` (so overrides
+rewire inherited dependents). The scope is defined by the
+`static-dependency-injector` provider type; providers are declared as typed
+attributes and **read as values** (`Services.api_client`, not `.api_client()`):
 
-| Scope         | Provider                                                                 | Lifetime                                                |
-|---------------|--------------------------------------------------------------------------|---------------------------------------------------------|
-| **global**    | `providers.Singleton`                                                    | One instance per pytest process.                        |
-| **session**   | `providers.ContextLocalSingleton` + reset in a `scope="session"` fixture | One instance per session, reset on exit.                |
-| **test**      | `providers.ContextLocalSingleton` + reset in an `autouse=True` fixture   | A new instance per test.                                |
-| **transient** | `providers.Factory`                                                      | A fresh instance on every `services.my_service()` call. |
+| Scope         | Provider                                                       | Lifetime                                                       |
+|---------------|----------------------------------------------------------------|----------------------------------------------------------------|
+| **global**    | `Singleton`                                                    | One instance per pytest process.                               |
+| **test**      | `TestContextSingleton`                                         | A new instance per test; auto-reset by the bundled plugin.     |
+| **session**   | `ContextLocalSingleton` + reset in a `scope="session"` fixture | One instance per contextvars context, reset on exit.           |
+| **transient** | `Factory`                                                      | A fresh instance on every access.                              |
 
 ```python
 # my_project/services.py
-from dependency_injector import providers
-from tquality_selenium import SeleniumServices
+from static_dependency_injector.containers import copy
+from static_dependency_injector.static_providers import (
+    ContextLocalSingleton,
+    Factory,
+    Singleton,
+    TestContextSingleton,
+)
+from tquality_selenium import BrowserService, SeleniumServices
 
-from my_project.clients import ApiClient, CurrentUser, TempDirFactory
+from my_project.clients import ApiClient, CurrentUser, SessionData, TempDirFactory
 
 
+@copy(SeleniumServices)
 class ProjectServices(SeleniumServices):
     # Global: one API client per process.
-    api_client = providers.Singleton(ApiClient)
+    api_client: ApiClient = Singleton(ApiClient)
 
-    # Session: data shared across all tests of a single run.
-    session_data = providers.ContextLocalSingleton(SessionData)
+    # Test: fresh state per test, auto-reset by the bundled static-di plugin.
+    current_user: CurrentUser = TestContextSingleton(CurrentUser)
 
-    # Test: fresh state per test.
-    current_user = providers.ContextLocalSingleton(CurrentUser)
+    # Session: data shared across a run, reset in a session fixture.
+    session_data: SessionData = ContextLocalSingleton(SessionData)
 
     # Transient: a fresh instance on every access.
-    temp_dir = providers.Factory(TempDirFactory)
+    temp_dir: TempDirFactory = Factory(TempDirFactory)
 
-    # Replacing an existing service (referencing the parent's config):
-    # browser = providers.ContextLocalSingleton(
-    #     MyBrowserService, config=SeleniumServices.config,
+    # Replacing an existing service (rewired onto the parent's config by @copy;
+    # reference the inherited provider via `.provider.config`):
+    # browser: BrowserService = TestContextSingleton(
+    #     MyBrowserService, config=SeleniumServices.provider.config,
     # )
 ```
 
@@ -194,30 +201,22 @@ import pytest
 
 from my_project.services import ProjectServices
 
-ProjectServices.setup()
 
-
-@pytest.fixture(autouse=True)
-def _reset_test_scoped_services():
-    """Test-scoped ContextLocalSingleton instances are reset after each test."""
-    yield
-    ProjectServices.current_user.reset()
+# current_user is TestContextSingleton - auto-reset per test, no fixture needed.
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _reset_session_scoped_services():
-    """Session-scoped ContextLocalSingleton instances are reset at the end of the pytest session."""
+    """Session-scoped ContextLocalSingleton providers reset at the end of the run."""
     yield
-    ProjectServices.session_data.reset()
+    ProjectServices.provider.session_data.reset()
 
 
 @pytest.fixture(autouse=True)
 def browser():
-    ProjectServices.browser()
     yield
-    ProjectServices.browser().quit()
-    ProjectServices.browser.reset()
-    ProjectServices.logger.reset()
+    if ProjectServices.is_browser_started():
+        ProjectServices.browser.quit()  # browser is testlocal - instance auto-reset per test
 ```
 
 Resolving a service by type, without referencing the provider name —

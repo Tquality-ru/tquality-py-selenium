@@ -1,8 +1,8 @@
-from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.button import Button
 from tquality_selenium.elements.by import By
 from tquality_selenium.elements.by_kind import ByKind
 from tquality_selenium.elements.checkbox import CheckBox
+from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.element_state import (
     ElementState,
     StatePredicate,

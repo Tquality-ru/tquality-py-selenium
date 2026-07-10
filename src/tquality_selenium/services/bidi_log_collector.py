@@ -12,6 +12,7 @@
 `filter_records` применяет whitelist/blacklist regex-правила,
 `format_attachment` склеивает с size-truncate.
 """
+
 from __future__ import annotations
 
 import re
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
     from tquality_core import Logger, Step
 
     from tquality_selenium.config import LogsConfig
-    from tquality_selenium.services.bidi_actions import BiDiBrowserActions
+    from tquality_selenium.services.bidi_browser_actions import BiDiBrowserActions
 
 
 class BiDiLogCollector:
@@ -68,7 +69,8 @@ class BiDiLogCollector:
     # --- wiring ----------------------------------------------------------
 
     def subscribe_to_events(
-        self, bidi: BiDiBrowserActions,
+        self,
+        bidi: BiDiBrowserActions,
     ) -> BiDiLogCollector:
         """Подписать сборщик на BiDi-события через `BiDiBrowserActions`-фасад.
 
@@ -129,7 +131,9 @@ class BiDiLogCollector:
             self._unregister_hooks = None
 
     def install_step_hooks(
-        self, logger: Logger, logs_config: LogsConfig,
+        self,
+        logger: Logger,
+        logs_config: LogsConfig,
     ) -> BiDiLogCollector:
         """Зарегистрировать enter/exit-hooks для прикрепления собранных логов.
 
@@ -166,7 +170,9 @@ class BiDiLogCollector:
                     continue
                 records = drain(snapshot)
                 filtered = self.filter_records(
-                    records, channel_cfg.filters, channel_cfg.ignored_patterns,
+                    records,
+                    channel_cfg.filters,
+                    channel_cfg.ignored_patterns,
                 )
                 if not filtered:
                     continue
@@ -174,7 +180,8 @@ class BiDiLogCollector:
                 label = f"BiDi {name} logs [{step.title}]"
                 try:
                     allure.attach(
-                        payload, name=label,
+                        payload,
+                        name=label,
                         attachment_type=allure.attachment_type.TEXT,
                     )
                 except Exception:  # noqa: BLE001
@@ -199,7 +206,7 @@ class BiDiLogCollector:
 
         Метод/URL/статус, request/response-заголовки, request/response-тело.
         Каждое поле на своей строке - чтобы regex-фильтр пользователя
-        матчился против любого из них в одном проходе.
+        сопоставлялся с любым из них в одном проходе.
         """
         method = event.get("method", "?")
         url = event.get("url", "")
@@ -312,11 +319,7 @@ class BiDiLogCollector:
         for arg in getattr(evt, "args", []) or []:
             val = getattr(arg, "value", None)
             text_parts.append(str(val) if val is not None else str(arg))
-        text = (
-            " ".join(text_parts)
-            if text_parts
-            else str(getattr(evt, "text", evt))
-        )
+        text = " ".join(text_parts) if text_parts else str(getattr(evt, "text", evt))
         return {
             "level": getattr(evt, "level", None) or getattr(evt, "type", "log"),
             "text": text,
@@ -324,11 +327,7 @@ class BiDiLogCollector:
 
     @staticmethod
     def _js_error_event_to_dict(evt: Any) -> dict[str, Any]:
-        text = (
-            getattr(evt, "text", None)
-            or getattr(evt, "message", None)
-            or str(evt)
-        )
+        text = getattr(evt, "text", None) or getattr(evt, "message", None) or str(evt)
         return {"level": "error", "text": str(text)}
 
 

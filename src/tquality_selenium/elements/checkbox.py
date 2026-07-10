@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from tquality_core import ElementState, StateSpec
 
-from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.by import By
+from tquality_selenium.elements.element import Element
 
 
 class CheckBox(Element):

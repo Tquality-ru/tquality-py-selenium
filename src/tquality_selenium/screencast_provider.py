@@ -17,6 +17,7 @@ Frame source - трёхуровневая лестница для съёмки �
 адаптация frame source'а под selenium и проброс настроек из
 `SeleniumConfig.screencast`.
 """
+
 from __future__ import annotations
 
 import base64
@@ -82,8 +83,7 @@ class SeleniumScreencastProvider:
             if not _BIDI_FALLBACK_WARNED:
                 _BIDI_FALLBACK_WARNED = True
                 _log.warning(
-                    "BiDi browsingContext.captureScreenshot недоступен (%s); "
-                    "пробую CDP / fallback",
+                    "BiDi browsingContext.captureScreenshot недоступен (%s); пробую CDP / fallback",
                     exc,
                 )
 
@@ -91,10 +91,7 @@ class SeleniumScreencastProvider:
         if cdp is not None:
             try:
                 cdp_result = cdp("Page.captureScreenshot", {"format": "png"})
-                data = (
-                    cdp_result.get("data")
-                    if isinstance(cdp_result, dict) else None
-                )
+                data = cdp_result.get("data") if isinstance(cdp_result, dict) else None
                 if isinstance(data, str):
                     return base64.b64decode(data)
             except Exception as exc:  # noqa: BLE001

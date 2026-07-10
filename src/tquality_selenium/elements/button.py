@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from selenium.webdriver import EdgeOptions
 from tquality_core import ElementState, StateSpec
 
-from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.by import By
+from tquality_selenium.elements.element import Element
+
+EdgeOptions()
 
 
 class Button(Element):

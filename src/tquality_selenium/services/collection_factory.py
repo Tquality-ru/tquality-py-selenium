@@ -16,17 +16,18 @@ factory = SeleniumServices.get_service(CollectionFactory)
 products = factory.from_page(Product, container_css=".product-card")
 ```
 """
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar, get_args, get_origin
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, get_args, get_origin
 
 from pydantic import BaseModel, Field
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 
-from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.by import By
 from tquality_selenium.elements.by_kind import ByKind
+from tquality_selenium.elements.element import Element
 from tquality_selenium.services.pseudo_element import PseudoElement
 
 if TYPE_CHECKING:
@@ -86,7 +87,11 @@ class DomField:
         для бизнес-логики оборачивайте поле в валидатор.
         """
         return DomField._build_style(
-            ByKind.CSS_SELECTOR, selector, style_prop, pseudo, **kwargs,
+            ByKind.CSS_SELECTOR,
+            selector,
+            style_prop,
+            pseudo,
+            **kwargs,
         )
 
     @staticmethod
@@ -97,12 +102,19 @@ class DomField:
     ) -> Any:
         """То же, что `css_style`, но локатор - XPath; псевдо-элементы не поддерживаются."""
         return DomField._build_style(
-            ByKind.XPATH, selector, style_prop, None, **kwargs,
+            ByKind.XPATH,
+            selector,
+            style_prop,
+            None,
+            **kwargs,
         )
 
     @staticmethod
     def _build(
-        by: str, value: str, attr: str | None, **kwargs: Any,
+        by: str,
+        value: str,
+        attr: str | None,
+        **kwargs: Any,
     ) -> Any:
         extra: dict[str, Any] = {_BY_KEY: by, _VALUE_KEY: value}
         if attr is not None:
@@ -118,7 +130,9 @@ class DomField:
         **kwargs: Any,
     ) -> Any:
         extra: dict[str, Any] = {
-            _BY_KEY: by, _VALUE_KEY: value, _STYLE_KEY: style_prop,
+            _BY_KEY: by,
+            _VALUE_KEY: value,
+            _STYLE_KEY: style_prop,
         }
         if pseudo is not None:
             extra[_PSEUDO_KEY] = str(pseudo)
@@ -128,18 +142,24 @@ class DomField:
 class CollectionFactory:
     """Factory: создает список моделей из коллекции DOM-элементов."""
 
+    def __init__(
+        self,
+        driver_resolver: Callable[[], WebDriver],
+        logger_resolver: Callable[[], Logger],
+    ) -> None:
+        # Внедряются резолверы (driver/logger - testlocal): актуальный per-test
+        # экземпляр на каждый вызов; `@copy` перевязывает инъекции на слоты
+        # подкласса, поэтому фабрика следует за leaf-контейнером.
+        self._driver_resolver = driver_resolver
+        self._logger_resolver = logger_resolver
+
     @property
     def _driver(self) -> WebDriver:
-        from tquality_selenium.browser import BrowserService
-        from tquality_selenium.container import SeleniumServices
-        return SeleniumServices.get_service(BrowserService).driver
+        return self._driver_resolver()
 
     @property
     def _log(self) -> Logger:
-        from tquality_core import Logger
-
-        from tquality_selenium.container import SeleniumServices
-        return SeleniumServices.get_service(Logger)
+        return self._logger_resolver()
 
     def from_page(
         self,
@@ -157,11 +177,15 @@ class CollectionFactory:
         script = self._build_script(container_css, field_map)
         self._log.info(
             "CollectionFactory: extract %s from '%s'",
-            model.__name__, container_css,
+            model.__name__,
+            container_css,
         )
         raw_items: list[dict[str, Any]] = self._driver.execute_script(script)
         self._populate_element_fields(
-            raw_items, field_map, container_css, model.__name__,
+            raw_items,
+            field_map,
+            container_css,
+            model.__name__,
         )
         return [model.model_validate(item) for item in raw_items]
 
@@ -172,10 +196,7 @@ class CollectionFactory:
         container_css: str,
         model_name: str,
     ) -> None:
-        element_fields = {
-            name: meta for name, meta in field_map.items()
-            if _ELEMENT_TYPE_KEY in meta
-        }
+        element_fields = {name: meta for name, meta in field_map.items() if _ELEMENT_TYPE_KEY in meta}
         if not element_fields:
             return
         container_xpath = By.css_selector(container_css).to_xpath()
@@ -202,7 +223,8 @@ class CollectionFactory:
             if not (isinstance(by_value, str) and isinstance(value_value, str)):
                 continue
             entry: dict[str, Any] = {
-                _BY_KEY: by_value, _VALUE_KEY: value_value,
+                _BY_KEY: by_value,
+                _VALUE_KEY: value_value,
             }
             attr_value = extra.get(_ATTR_KEY)
             if isinstance(attr_value, str):
@@ -235,10 +257,7 @@ class CollectionFactory:
     def _annotation_base_element_type(
         annotation: Any,
     ) -> type[Element] | None:
-        candidates = (
-            list(get_args(annotation)) if get_origin(annotation) is not None
-            else [annotation]
-        )
+        candidates = list(get_args(annotation)) if get_origin(annotation) is not None else [annotation]
         for c in candidates:
             if isinstance(c, type) and issubclass(c, Element):
                 return c
@@ -265,8 +284,7 @@ class CollectionFactory:
                 selector_js = f"el.querySelector('{value}')"
             elif by == ByKind.XPATH:
                 selector_js = (
-                    f"document.evaluate('{value}', el, null, "
-                    f"XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue"
+                    f"document.evaluate('{value}', el, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue"
                 )
             else:
                 raise ValueError(
@@ -274,10 +292,7 @@ class CollectionFactory:
                 )
 
             if raw:
-                extract = (
-                    f"        var _{name} = {selector_js};\n"
-                    f"        item['{name}'] = _{name};"
-                )
+                extract = f"        var _{name} = {selector_js};\n        item['{name}'] = _{name};"
             elif style_prop is not None:
                 style_escaped = style_prop.replace("'", "\\'")
                 pseudo_arg = f"'{pseudo}'" if pseudo else "null"

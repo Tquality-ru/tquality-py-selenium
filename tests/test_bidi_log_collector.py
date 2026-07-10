@@ -6,7 +6,7 @@
 - collection-семантика collector'а (timestamps, drain-since, раздельные
   буферы network/js);
 - truncation в `BiDiLogCollector.format_attachment`;
-- regex-фильтрация против разных полей record'а (URL, заголовки, тело,
+- regex-фильтрация по разным полям record'а (URL, заголовки, тело,
   статус);
 - real-world сценарии: drop static assets, keep API errors only,
   whitelist-precedence над blacklist.
@@ -117,7 +117,7 @@ def test_format_attachment_empty_records() -> None:
     assert BiDiLogCollector.format_attachment([], size_limit=1000) == ""
 
 
-# --- Regex-фильтрация против разных полей record'а --------------------------
+# --- Regex-фильтрация по разным полям record'а --------------------------
 
 
 def test_filter_matches_url() -> None:

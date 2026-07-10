@@ -58,7 +58,7 @@ def _try_get_driver() -> WebDriver | None:
     try:
         if not SeleniumServices.is_browser_started():
             return None
-        return SeleniumServices.browser().driver
+        return SeleniumServices.browser.driver
     except Exception:
         return None
 

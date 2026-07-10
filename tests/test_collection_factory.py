@@ -29,7 +29,7 @@ from pydantic import (
 )
 from selenium.webdriver.remote.webelement import WebElement
 
-from tquality_selenium import Element, Button, ByKind
+from tquality_selenium import Button, ByKind, Element
 from tquality_selenium.services.collection_factory import (
     CollectionFactory,
     DomField,

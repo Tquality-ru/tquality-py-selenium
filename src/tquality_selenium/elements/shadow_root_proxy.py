@@ -32,8 +32,8 @@ from tquality_selenium.elements.input import Input
 from tquality_selenium.elements.label import Label
 
 if TYPE_CHECKING:
-    from tquality_selenium.elements.element import Element
     from tquality_selenium.elements.by import By
+    from tquality_selenium.elements.element import Element
 
 
 class ShadowRootProxy:

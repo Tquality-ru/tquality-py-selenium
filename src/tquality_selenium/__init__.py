@@ -14,11 +14,11 @@ from tquality_selenium.browser import BrowserService
 from tquality_selenium.config import BrowserType, Capabilities, SeleniumConfig
 from tquality_selenium.container import SeleniumServices
 from tquality_selenium.elements import (
-    Element,
     Button,
     By,
     ByKind,
     CheckBox,
+    Element,
     Input,
     Label,
 )
@@ -35,9 +35,7 @@ from tquality_selenium.services import (
     DomField,
     DriverWaiter,
     ElementFactory,
-    ElementJsActions,
     ElementWaiter,
-    JsActions,
     LazyElements,
     PseudoElement,
     StyleProperty,
@@ -78,10 +76,8 @@ __all__ = [
     "DomField",
     "DriverWaiter",
     "ElementFactory",
-    "ElementJsActions",
     "ElementWaiter",
     "Input",
-    "JsActions",
     "Label",
     "LazyElements",
     "LocatorUtils",

@@ -1,4 +1,5 @@
 """Тесты структуры элементов (без реального драйвера)."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -7,10 +8,10 @@ from typing import Any, override
 import pytest
 
 from tquality_selenium import (
-    Element,
     Button,
     By,
     CheckBox,
+    Element,
     ElementFactory,
     Input,
     Label,
@@ -52,7 +53,7 @@ def test_label_is_base_element() -> None:
 
 
 def test_element_js_actions_is_bound() -> None:
-    from tquality_selenium.services.js_actions import ElementJsActions
+    from tquality_selenium.services.element_js_actions import ElementJsActions
 
     btn = Button(By.id("submit"))
     assert isinstance(btn.js_actions, ElementJsActions)
@@ -79,13 +80,17 @@ def test_input_has_submit_text() -> None:
         pytest.param(By.tag_name, "div", ("tag name", "div"), id="tag_name"),
         pytest.param(By.link_text, "L", ("link text", "L"), id="link_text"),
         pytest.param(
-            By.partial_link_text, "P", ("partial link text", "P"),
+            By.partial_link_text,
+            "P",
+            ("partial link text", "P"),
             id="partial_link_text",
         ),
     ],
 )
 def test_by_factories_produce_expected_pairs(
-    factory: Any, value: str, expected: tuple[str, str],
+    factory: Any,
+    value: str,
+    expected: tuple[str, str],
 ) -> None:
     assert factory(value) == expected
 
@@ -125,7 +130,8 @@ def test_locator_utils_normalize_xpath(value: str, expected: str) -> None:
     ],
 )
 def test_by_xpath_to_xpath_normalizes_via_locator_utils(
-    value: str, expected: str,
+    value: str,
+    expected: str,
 ) -> None:
     """`to_xpath()` для XPATH использует `LocatorUtils.normalize_xpath`."""
     assert By.xpath(value).to_xpath() == expected
@@ -137,13 +143,15 @@ def test_by_xpath_to_xpath_normalizes_via_locator_utils(
         pytest.param("submit", "'submit'", id="no-quotes"),
         pytest.param("don't", '"don\'t"', id="apostrophe-only"),
         pytest.param(
-            'a\'b"c', "concat('a', \"'\", 'b\"c')",
+            "a'b\"c",
+            "concat('a', \"'\", 'b\"c')",
             id="both-quote-kinds",
         ),
     ],
 )
 def test_locator_utils_xpath_literal_quotes_safely(
-    value: str, expected: str,
+    value: str,
+    expected: str,
 ) -> None:
     from tquality_selenium import LocatorUtils
 
@@ -154,15 +162,18 @@ def test_locator_utils_xpath_literal_quotes_safely(
     ("by", "expected"),
     [
         pytest.param(
-            By.id("don't"), '//*[@id="don\'t"]',
+            By.id("don't"),
+            '//*[@id="don\'t"]',
             id="id-with-apostrophe",
         ),
         pytest.param(
-            By.name("a'b"), '//*[@name="a\'b"]',
+            By.name("a'b"),
+            '//*[@name="a\'b"]',
             id="name-with-apostrophe",
         ),
         pytest.param(
-            By.link_text("Don't click"), '//a[text()="Don\'t click"]',
+            By.link_text("Don't click"),
+            '//a[text()="Don\'t click"]',
             id="link-text-with-apostrophe",
         ),
         pytest.param(
@@ -179,14 +190,13 @@ def test_by_to_xpath_escapes_quotes_in_value(by: By, expected: str) -> None:
 
 def test_by_to_xpath_uses_concat_when_value_has_both_quote_kinds() -> None:
     # И `'`, и `"` - concat-форма (точная строка проверяется в xpath_literal).
-    assert "concat(" in By.id('a\'b"c').to_xpath()
+    assert "concat(" in By.id("a'b\"c").to_xpath()
 
 
 def test_by_class_name_to_xpath_escapes_quoted_value() -> None:
     """`class_name` тоже корректно квотит значение в `contains(...)`."""
     assert By.class_name("foo'bar").to_xpath() == (
-        "//*[contains(concat(' ', normalize-space(@class), ' '), "
-        '" foo\'bar ")]'
+        "//*[contains(concat(' ', normalize-space(@class), ' '), \" foo'bar \")]"
     )
 
 
@@ -207,18 +217,21 @@ def test_locator_utils_join_xpath_concatenates_via_to_xpath() -> None:
         # Голый `button` без нормализации стал бы невалидным
         # `//*[@id='container']button`; нормализация добавляет `/`.
         pytest.param(
-            "button", "//*[@id='container']/button",
+            "button",
+            "//*[@id='container']/button",
             id="bare-tag-gets-leading-slash",
         ),
         # `.//foo` → `//foo`, конкатенация даёт descendant-релейшен.
         pytest.param(
-            ".//span", "//*[@id='container']//span",
+            ".//span",
+            "//*[@id='container']//span",
             id="dot-double-slash-becomes-descendant",
         ),
     ],
 )
 def test_locator_utils_join_xpath_normalizes_relative_child_xpath(
-    child_xpath: str, expected: str,
+    child_xpath: str,
+    expected: str,
 ) -> None:
     """Дочерний xpath без ведущего слэша / с `.//` корректно склеивается:
     `By.to_xpath()` уже нормализует значение для XPATH."""
@@ -293,7 +306,8 @@ def test_element_factory_element_generic_returns_subclass_instance() -> None:
     ],
 )
 def test_element_factory_typed_collection_wrappers(
-    method: str, expected_cls: type[Element],
+    method: str,
+    expected_cls: type[Element],
 ) -> None:
     """`factory.buttons/checkboxes/labels/inputs` - типизированные обёртки
     над `elements()` для конкретных классов."""
@@ -309,7 +323,10 @@ def test_element_factory_get_child_element_joins_parent_locator_via_xpath() -> N
     factory = ElementFactory()
     parent = Element(By.id("container"), "Container")
     child = factory.get_child_element(
-        Button, parent, By.css_selector("button.primary"), "Primary",
+        Button,
+        parent,
+        By.css_selector("button.primary"),
+        "Primary",
     )
     assert isinstance(child, Button)
     assert child.name == "Primary"
@@ -329,7 +346,8 @@ def test_element_factory_get_child_element_joins_parent_locator_via_xpath() -> N
     ],
 )
 def test_element_factory_get_child_per_class_wrappers(
-    method: str, expected_cls: type[Element],
+    method: str,
+    expected_cls: type[Element],
 ) -> None:
     factory = ElementFactory()
     parent = Element(By.id("root"), "Root")
@@ -342,7 +360,10 @@ def test_element_factory_get_child_elements_joins_locator_and_returns_lazy() -> 
     factory = ElementFactory()
     parent = Element(By.id("container"), "Container")
     collection = factory.get_child_elements(
-        Button, parent, By.css_selector("button"), "btn",
+        Button,
+        parent,
+        By.css_selector("button"),
+        "btn",
     )
     assert isinstance(collection, LazyElements)
     assert collection._by.by_kind.value == "xpath"
@@ -361,7 +382,8 @@ def test_element_factory_get_child_elements_joins_locator_and_returns_lazy() -> 
     ],
 )
 def test_element_factory_get_child_collection_per_class_wrappers(
-    method: str, expected_cls: type[Element],
+    method: str,
+    expected_cls: type[Element],
 ) -> None:
     factory = ElementFactory()
     parent = Element(By.id("root"), "Root")
@@ -380,17 +402,24 @@ def test_get_computed_style_passes_property_name_to_driver() -> None:
     """Имя свойства уходит в execute_script вторым аргументом, ответ - str."""
     from unittest.mock import MagicMock, PropertyMock, patch
 
-    from tquality_selenium.services.js_actions import ElementJsActions
+    from tquality_selenium.services.element_js_actions import ElementJsActions
 
     fake_driver = MagicMock()
     fake_driver.execute_script.return_value = "block"
     ja = ElementJsActions(find=MagicMock(), driver_getter=MagicMock())
 
-    with patch.object(
-        ElementJsActions, "_driver", new_callable=PropertyMock,
-    ) as drv, patch.object(
-        ElementJsActions, "_log", new_callable=PropertyMock,
-    ) as log:
+    with (
+        patch.object(
+            ElementJsActions,
+            "_driver",
+            new_callable=PropertyMock,
+        ) as drv,
+        patch.object(
+            ElementJsActions,
+            "_log",
+            new_callable=PropertyMock,
+        ) as log,
+    ):
         drv.return_value = fake_driver
         log.return_value = MagicMock()
         assert ja.get_computed_style("display") == "block"
@@ -405,19 +434,28 @@ def test_get_computed_styles_returns_dict_str_str() -> None:
     """JS возвращает объект - получаем dict[str, str], типы приведены."""
     from unittest.mock import MagicMock, PropertyMock, patch
 
-    from tquality_selenium.services.js_actions import ElementJsActions
+    from tquality_selenium.services.element_js_actions import ElementJsActions
 
     fake_driver = MagicMock()
     fake_driver.execute_script.return_value = {
-        "display": "block", "opacity": "1", "z-index": "auto",
+        "display": "block",
+        "opacity": "1",
+        "z-index": "auto",
     }
     ja = ElementJsActions(find=MagicMock(), driver_getter=MagicMock())
 
-    with patch.object(
-        ElementJsActions, "_driver", new_callable=PropertyMock,
-    ) as drv, patch.object(
-        ElementJsActions, "_log", new_callable=PropertyMock,
-    ) as log:
+    with (
+        patch.object(
+            ElementJsActions,
+            "_driver",
+            new_callable=PropertyMock,
+        ) as drv,
+        patch.object(
+            ElementJsActions,
+            "_log",
+            new_callable=PropertyMock,
+        ) as log,
+    ):
         drv.return_value = fake_driver
         log.return_value = MagicMock()
         result = ja.get_computed_styles()
@@ -591,14 +629,16 @@ class _FakeDriverWaiter(_DriverWaiter):
         message: str = "",
         ignored_exceptions: Any = None,
     ) -> bool:
-        self.calls.append({
-            "condition": condition,
-            "message": message,
-            "timeout": timeout,
-            "poll_interval": poll_interval,
-            "raise_on_timeout": raise_on_timeout,
-            "ignored_exceptions": ignored_exceptions,
-        })
+        self.calls.append(
+            {
+                "condition": condition,
+                "message": message,
+                "timeout": timeout,
+                "poll_interval": poll_interval,
+                "raise_on_timeout": raise_on_timeout,
+                "ignored_exceptions": ignored_exceptions,
+            }
+        )
         return self._return_value
 
 
@@ -735,7 +775,9 @@ def test_wait_for_computed_style_builds_message_and_uses_js_actions() -> None:
     with patch.object(Element, "js_actions", new_callable=PropertyMock) as prop:
         prop.return_value = ja
         result = ElementWaiter(fake, btn).for_computed_style(
-            StyleProperty.DISPLAY, "block", timeout=3.0,
+            StyleProperty.DISPLAY,
+            "block",
+            timeout=3.0,
         )
         assert fake.calls[0]["condition"](object()) is True
 
@@ -754,7 +796,9 @@ def test_raise_on_timeout_kwarg_propagates() -> None:
     btn = Button(By.id("submit"), "Submit")
     fake = _FakeDriverWaiter()
     ElementWaiter(fake, btn).until_visible(
-        timeout=1.0, poll_interval=0.05, raise_on_timeout=True,
+        timeout=1.0,
+        poll_interval=0.05,
+        raise_on_timeout=True,
     )
     call = fake.calls[0]
     assert call["poll_interval"] == 0.05

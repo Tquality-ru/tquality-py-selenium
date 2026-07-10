@@ -14,6 +14,7 @@ Manager, копирование/патч UC-chromedriver, флаги для Dock
 через `self.X(...)`, так что subclass'у достаточно override-нуть нужный
 helper, чтобы подменить поведение без переписывания всего factory-метода.
 """
+
 from __future__ import annotations
 
 import contextvars
@@ -32,6 +33,7 @@ from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.safari.options import Options as SafariOptions
+from selenium.webdriver.safari.remote_connection import SafariRemoteConnection
 
 from tquality_selenium.config import BrowserType
 from tquality_selenium.utils.os_utils import OSUtils
@@ -39,7 +41,7 @@ from tquality_selenium.utils.os_utils import OSUtils
 if TYPE_CHECKING:
     from tquality_selenium.config import SeleniumConfig
     from tquality_selenium.services.actions import Actions
-    from tquality_selenium.services.bidi_actions import BiDiBrowserActions
+    from tquality_selenium.services.bidi_browser_actions import BiDiBrowserActions
     from tquality_selenium.services.context_manager import ContextManager
     from tquality_selenium.services.js_actions import JsActions
 
@@ -52,7 +54,8 @@ class BrowserService:
     """Обертка над Selenium WebDriver с DI-дружественным интерфейсом."""
 
     _started: contextvars.ContextVar[bool] = contextvars.ContextVar(
-        "_browser_started", default=False,
+        "_browser_started",
+        default=False,
     )
 
     def __init__(self, config: SeleniumConfig) -> None:
@@ -190,6 +193,7 @@ class BrowserService:
             opts = SafariOptions()
         elif browser is BrowserType.UNDETECTED_CHROME:
             import undetected_chromedriver as uc
+
             opts = uc.ChromeOptions()
             if active.headless:
                 opts.add_argument("--headless=new")
@@ -206,7 +210,14 @@ class BrowserService:
         for cap_key, cap_value in cfg.capabilities.model_dump(exclude_none=True).items():
             opts.set_capability(cap_key, cap_value)
         self._normalize_page_load_strategy(opts)
-        driver = webdriver.Remote(command_executor=cfg.remote_url, options=opts)
+        # Selenium 4.45 сверяет browserName с "Safari", но SafariOptions отдает
+        # "safari" (нижний регистр): хендлер не находится, Safari уходит на базовый
+        # RemoteConnection (без Safari-команд) и сыплет DeprecationWarning про
+        # remote_server_addr. Подставляем правильный коннектор для Safari явно.
+        executor: str | SafariRemoteConnection = (
+            SafariRemoteConnection(cfg.remote_url) if browser is BrowserType.SAFARI else cfg.remote_url
+        )
+        driver = webdriver.Remote(command_executor=executor, options=opts)
         driver.implicitly_wait(0)
         driver.set_page_load_timeout(active.page_load_timeout)
         driver.set_window_size(active.window_width, active.window_height)
@@ -221,11 +232,12 @@ class BrowserService:
         """JS-обёртка над driver'ом, привязанная к этому BrowserService.
 
         Lazy-композиция: `JsActions(driver_getter=lambda: self.driver)`.
-        Subclass-у BrowserService достаточно вернуть наследника JsActions
+        Subclass-у BrowserService достаточно вернуть наследника `JsActions`
         из этой property - DI-контейнер для этого не нужен.
         """
         if self._js_actions is None:
             from tquality_selenium.services.js_actions import JsActions
+
             self._js_actions = JsActions(driver_getter=lambda: self._driver)
         return self._js_actions
 
@@ -238,6 +250,7 @@ class BrowserService:
         и `browser.actions.click(b)` - две отдельные цепочки).
         """
         from tquality_selenium.services.actions import Actions
+
         return Actions(driver_getter=lambda: self._driver)
 
     @property
@@ -246,7 +259,8 @@ class BrowserService:
         `input`) плюс высокоуровневые методы. Та же lazy-композиция.
         """
         if self._bidi is None:
-            from tquality_selenium.services.bidi_actions import BiDiBrowserActions
+            from tquality_selenium.services.bidi_browser_actions import BiDiBrowserActions
+
             self._bidi = BiDiBrowserActions(driver_getter=lambda: self._driver)
         return self._bidi
 
@@ -261,6 +275,7 @@ class BrowserService:
         """
         from tquality_selenium.container import SeleniumServices
         from tquality_selenium.services.context_manager import ContextManager
+
         return SeleniumServices.get_service(ContextManager)
 
     def open(self, url: str) -> None:
@@ -289,8 +304,11 @@ class BrowserService:
         поддерживаемых ОС.
         """
         for binary in (
-            "google-chrome", "google-chrome-stable", "chromium",
-            "chromium-browser", "chrome",
+            "google-chrome",
+            "google-chrome-stable",
+            "chromium",
+            "chromium-browser",
+            "chrome",
         ):
             path = shutil.which(binary)
             if path:
@@ -306,8 +324,11 @@ class BrowserService:
             return browser_path
         if sys.platform == "darwin":
             for name in (
-                "Google Chrome", "Google Chrome Beta", "Google Chrome Dev",
-                "Google Chrome Canary", "Chromium",
+                "Google Chrome",
+                "Google Chrome Beta",
+                "Google Chrome Dev",
+                "Google Chrome Canary",
+                "Chromium",
             ):
                 candidate = f"/Applications/{name}.app/Contents/MacOS/{name}"
                 if os.path.isfile(candidate):
@@ -318,7 +339,11 @@ class BrowserService:
                 if not root:
                     continue
                 candidate = os.path.join(
-                    root, "Google", "Chrome", "Application", "chrome.exe",
+                    root,
+                    "Google",
+                    "Chrome",
+                    "Application",
+                    "chrome.exe",
                 )
                 if os.path.isfile(candidate):
                     return candidate
@@ -354,9 +379,7 @@ class BrowserService:
         c сохранением platform/version-структуры пути (version-aware кэш).
         """
         sm_path_obj = pathlib.Path(sm_path)
-        own_root = (
-            pathlib.Path.home() / ".cache" / "tquality-py-selenium" / "chromedriver"
-        )
+        own_root = pathlib.Path.home() / ".cache" / "tquality-py-selenium" / "chromedriver"
         own_path = own_root.joinpath(*sm_path_obj.parts[-3:])
         if not own_path.exists():
             own_path.parent.mkdir(parents=True, exist_ok=True)

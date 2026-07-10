@@ -1,0 +1,9 @@
+{
+    // Наследует remote_url из ../config.json5 (grid hub); добавляет
+    // chrome + BiDi + windows-ноду для интеграционного теста BiDi file-dialog.
+    "browser": "chrome",
+    "bidi": true,
+    "capabilities": {
+        "platform_name": "windows"
+    }
+}

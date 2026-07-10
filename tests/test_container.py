@@ -1,65 +1,25 @@
-"""Тесты DI-контейнера `SeleniumServices`: расширение, override, тред-изоляция.
+"""Тесты DI-контейнера `SeleniumServices`: расширение и резолв по типу.
 
-Двухуровневая модель активного контейнера:
-- `_default_services` (process-wide) - выставляется `setup()`.
-- `_active_services_ctx` (per-context ContextVar) - выставляется
-  `override_active(...)`. Тесты этого файла, мутирующие process-wide default,
-  выполняются в отдельном подпроцессе через `subprocess.run` с явным `cwd=`.
-
-Почему не `pytester.runpytest_subprocess`: pytester полагается на
-`monkeypatch.chdir(tmp_path)` в основном процессе и не передает `cwd=` в
-`Popen`. Под тред-параллелизмом два конкурирующих pytester-теста могут
-chdir-ить друг другу cwd, и subprocess стартует не в своей директории -
-наблюдалось на pytest-threadpool. Прямой `subprocess.run([..., cwd=tmp_path])`
-от этого свободен.
+Активного composition root с отдельным реестром больше нет: `get_service`
+резолвит из того контейнера, на котором вызван, а подкласс (`@copy`) резолвит
+свои переопределения через наследование. Потребители фреймворка обращаются к
+`SeleniumServices` напрямую; проект, переопределяющий провайдеры, работает через
+собственный `@copy`-подкласс.
 """
 from __future__ import annotations
 
-import subprocess
-import sys
-import textwrap
 import typing
-from concurrent.futures import ThreadPoolExecutor
-from contextvars import copy_context
-from pathlib import Path
 from typing import Any, override
 
 import pytest
-from dependency_injector import providers
+from static_dependency_injector.containers import copy
+from static_dependency_injector.static_providers import Singleton
 
 from tquality_selenium import (
-    Element,
     BrowserService,
-    Button,
-    By,
     ElementFactory,
     SeleniumServices,
 )
-
-
-def _run_in_subprocess(tmp_path: Path, body: str) -> None:
-    """Выполнить `body` Python-кода в подпроцессе с cwd=tmp_path.
-
-    Подпроцесс наследует venv (через `sys.executable`), но не cwd
-    основного процесса - это снимает гонку chdir/setattr между тредами.
-    Падает с понятным сообщением, если код вернул ненулевой код выхода.
-    """
-    script = tmp_path / "_assert.py"
-    script.write_text(body)
-    result = subprocess.run(
-        [sys.executable, str(script)],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise AssertionError(
-            f"Subprocess вернул {result.returncode}\n"
-            f"stdout:\n{result.stdout}\n"
-            f"stderr:\n{result.stderr}"
-        )
-
 
 # --- стабовые сервисы -------------------------------------------------------
 
@@ -69,7 +29,7 @@ class _MyService:
 
 
 class _ServicesWithExtra(SeleniumServices):
-    my_service: providers.Singleton[_MyService] = providers.Singleton(_MyService)
+    my_service: _MyService = Singleton(_MyService)
 
 
 class _FakeBrowserA(BrowserService):
@@ -93,19 +53,18 @@ class _FakeBrowserB(BrowserService):
         return ["B0", "B1"]
 
 
-# Базовый `SeleniumServices.browser` - `ContextLocalSingleton[BrowserService]`,
-# нам же удобнее `Singleton[_FakeBrowser*]`. Runtime dependency-injector
-# принимает любой Provider, но mypy строго проверяет совпадение типа
-# атрибута - `# type: ignore[assignment]` на провайдер-override-ах.
+# Базовый `SeleniumServices.browser` - `ContextLocalSingleton[BrowserService]`;
+# в подклассе переопределяем более простым `Singleton[_FakeBrowser*]`
+# (подтип `BrowserService`, поэтому слот типизируется как `BrowserService`).
 class _ServicesA(SeleniumServices):
-    browser = providers.Singleton(_FakeBrowserA)  # type: ignore[assignment]
+    browser: BrowserService = Singleton(_FakeBrowserA)
 
 
 class _ServicesB(SeleniumServices):
-    browser = providers.Singleton(_FakeBrowserB)  # type: ignore[assignment]
+    browser: BrowserService = Singleton(_FakeBrowserB)
 
 
-# --- in-process: get_service резолв -----------------------------------------
+# --- get_service: резолв по типу --------------------------------------------
 
 
 def test_get_service_resolves_by_exact_type() -> None:
@@ -139,171 +98,35 @@ def test_subclass_overrides_existing_service() -> None:
     assert not isinstance(browser, _FakeBrowserB)
 
 
-# --- in-process: override_active per-context --------------------------------
+def test_get_service_resolves_from_the_class_it_is_called_on() -> None:
+    """Никакого «активного» реестра: каждый контейнер резолвит свои провайдеры."""
+    assert isinstance(_ServicesA.get_service(BrowserService), _FakeBrowserA)
+    assert isinstance(_ServicesB.get_service(BrowserService), _FakeBrowserB)
 
 
-def test_override_active_swaps_resolution_within_block() -> None:
-    """Внутри `with override_active(...)` lookups через базовый класс идут в override."""
-    with _ServicesA.override_active():
-        browser = SeleniumServices.get_service(BrowserService)
-    assert isinstance(browser, _FakeBrowserA)
+# --- inheritance + @copy: подкласс самосогласован ---------------------------
 
 
-def test_override_active_does_not_leak_after_block() -> None:
-    """После выхода из контекста override снят - default не затронут."""
-    with _ServicesA.override_active():
+class _FakeBrowserWithDriver(BrowserService):
+    """Фейковый browser с сентинел-`driver` (проверяем перевязку зависимого)."""
+
+    driver = "fake-driver-sentinel"
+
+    def __init__(self) -> None:
         pass
-    # Снаружи: `_default_services` не выставлен в этом тесте, fallback идет
-    # в базовый `SeleniumServices`, где browser требует config - но мы не
-    # резолвим browser, проверяем легковесный сервис.
-    factory = SeleniumServices.get_service(ElementFactory)
-    assert isinstance(factory, ElementFactory)
 
 
-def test_override_active_propagates_to_base_element_browser_lookup() -> None:
-    """`Element._browser` идет через активный контейнер - видит override."""
-    el = Element(By.css_selector(".x"))
-    with _ServicesA.override_active():
-        assert isinstance(el._browser, _FakeBrowserA)
+@copy(SeleniumServices)
+class _CopyServices(SeleniumServices):
+    browser: BrowserService = Singleton(_FakeBrowserWithDriver)
 
 
-def test_override_active_propagates_to_lazy_elements() -> None:
-    """LazyElements использует тот же активный контейнер."""
-    collection = ElementFactory().elements(Button, By.css_selector("button"), "btn")
-    with _ServicesA.override_active():
-        assert len(collection) == 3
-        assert collection[1]._find() == "A1"
+def test_copy_rewires_inherited_dependent_onto_overridden_slot() -> None:
+    """`@copy` перевязывает унаследованный `driver` на переопределённый `browser`.
 
-
-# --- in-process: тред-изоляция через ContextVar -----------------------------
-
-
-def test_override_active_is_isolated_across_threads() -> None:
-    """Каждый тред со своим override видит свой контейнер; не пересекаются.
-
-    `ContextVar` НЕ наследуется дочерним тредом автоматически - используем
-    `copy_context().run(...)` явно. В каждом треде контекст - копия родительского
-    + локальные `set()` поверх (не видны другим тредам)."""
-
-    def worker(services_cls: type[SeleniumServices]) -> str:
-        def _run() -> str:
-            with services_cls.override_active():
-                browser = SeleniumServices.get_service(BrowserService)
-                return type(browser).__name__
-        return copy_context().run(_run)
-
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        results = list(pool.map(
-            worker, [_ServicesA, _ServicesB, _ServicesA, _ServicesB],
-        ))
-
-    assert results == ["_FakeBrowserA", "_FakeBrowserB", "_FakeBrowserA", "_FakeBrowserB"]
-
-
-def test_override_active_does_not_propagate_to_child_thread_without_copy() -> None:
-    """Документируем гарантию: без `copy_context` дочерний тред НЕ видит override.
-
-    Если этот тест когда-нибудь начнет падать - значит Python поменял
-    дефолтное поведение наследования контекста, и доку контейнера надо обновить.
+    `driver = Callable(attrgetter("driver"), browser)` - зависимый провайдер;
+    после `@copy` он смотрит на `_CopyServices.browser`, а не на базовый.
+    Это и есть «inheritance + @copy»-маршрутизация вместо реестра активного root.
     """
-    seen_in_child: list[type | None] = []
-
-    def child() -> None:
-        from tquality_selenium.container import _active_services_ctx
-        seen_in_child.append(_active_services_ctx.get())
-
-    with _ServicesA.override_active():
-        # запускаем без copy_context().run(...)
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            pool.submit(child).result()
-
-    assert seen_in_child == [None]
-
-
-# --- subprocess: process-wide default через setup() -------------------------
-
-
-def test_setup_writes_process_wide_default(tmp_path: Path) -> None:
-    """`setup()` ставит default, видимый из любого треда без override.
-
-    Объединяет три проверки в одном subprocess-прогоне: default видим после
-    `setup()`, виден в worker-треде, последний `setup()` побеждает.
-    """
-    _run_in_subprocess(tmp_path, textwrap.dedent("""
-        from concurrent.futures import ThreadPoolExecutor
-        from dependency_injector import providers
-
-        from tquality_selenium import BrowserService, SeleniumServices
-
-
-        class _FakeBrowser(BrowserService):
-            def __init__(self): pass
-
-
-        class ProjectServices(SeleniumServices):
-            browser = providers.Singleton(_FakeBrowser)
-
-
-        ProjectServices.setup()
-
-        # 1. default виден после setup() через базовый класс
-        assert isinstance(SeleniumServices.get_service(BrowserService), _FakeBrowser)
-
-        # 2. default виден в worker-треде (без copy_context)
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            cls_name = pool.submit(
-                lambda: type(SeleniumServices.get_service(BrowserService)).__name__,
-            ).result()
-        assert cls_name == "_FakeBrowser", cls_name
-
-
-        # 3. последний setup() побеждает
-        class _OtherFakeBrowser(BrowserService):
-            def __init__(self): pass
-
-
-        class OtherServices(SeleniumServices):
-            browser = providers.Singleton(_OtherFakeBrowser)
-
-
-        OtherServices.setup()
-        assert isinstance(
-            SeleniumServices.get_service(BrowserService), _OtherFakeBrowser,
-        )
-    """))
-
-
-def test_override_active_takes_precedence_over_setup_default(tmp_path: Path) -> None:
-    """ContextVar override побеждает process-wide default."""
-    _run_in_subprocess(tmp_path, textwrap.dedent("""
-        from dependency_injector import providers
-
-        from tquality_selenium import BrowserService, SeleniumServices
-
-
-        class _DefaultBrowser(BrowserService):
-            def __init__(self): pass
-
-
-        class _OverrideBrowser(BrowserService):
-            def __init__(self): pass
-
-
-        class DefaultServices(SeleniumServices):
-            browser = providers.Singleton(_DefaultBrowser)
-
-
-        class OverrideServices(SeleniumServices):
-            browser = providers.Singleton(_OverrideBrowser)
-
-
-        DefaultServices.setup()
-        with OverrideServices.override_active():
-            assert isinstance(
-                SeleniumServices.get_service(BrowserService), _OverrideBrowser,
-            )
-        # После выхода - снова default.
-        assert isinstance(
-            SeleniumServices.get_service(BrowserService), _DefaultBrowser,
-        )
-    """))
+    assert isinstance(_CopyServices.get_service(BrowserService), _FakeBrowserWithDriver)
+    assert _CopyServices.driver == "fake-driver-sentinel"

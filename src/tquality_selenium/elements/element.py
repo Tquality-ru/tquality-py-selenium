@@ -1,17 +1,18 @@
 """Базовый UI-элемент.
 
 Идентифицируется локатором `By` (подкласс `BaseBy` - кортеж `(by, value)`). Сервисы
-(browser, logger, waiters, js_actions) резолвятся через активный composition
-root `SeleniumServices`, настроенный в `conftest.py` через `YourServices.setup()`.
+(browser, logger, waiters, js_actions) резолвятся через composition root
+`SeleniumServices` (или `@copy`-подкласс проекта) по типу.
 
 `element.js_actions` возвращает `ElementJsActions`, привязанный к данному
 элементу через ленивый резолвер (`self._find`), что снимает stale reference
 между действиями. `element.wait` - аналогично, ожидания, привязанные к этому
 элементу: `element.wait.until_visible()`, `element.wait.until_clickable()`...
 """
-from __future__ import annotations
-import typing
 
+from __future__ import annotations
+
+import typing
 from typing import TYPE_CHECKING, Any, Self
 
 from selenium.common.exceptions import NoSuchElementException
@@ -25,9 +26,9 @@ from tquality_selenium.elements.geometry import (
     ElementRect,
     ElementSize,
 )
-from tquality_selenium.services.bidi_actions import BiDiElementActions
+from tquality_selenium.services.bidi_element_actions import BiDiElementActions
+from tquality_selenium.services.element_js_actions import ElementJsActions
 from tquality_selenium.services.element_waiter import ElementWaiter
-from tquality_selenium.services.js_actions import ElementJsActions
 
 if TYPE_CHECKING:
     from tquality_core import Logger
@@ -48,10 +49,12 @@ class Element(CoreBaseElement):
         self._state: StateSpec = state
 
     @property
+    @typing.override
     def by(self) -> By:
         return self._by
 
     @property
+    @typing.override
     def name(self) -> str:
         return self._name
 
@@ -75,7 +78,9 @@ class Element(CoreBaseElement):
         if callable(state):
             predicate: StatePredicate = state
             self.wait.until(
-                predicate, timeout=timeout, raise_on_timeout=True,
+                predicate,
+                timeout=timeout,
+                raise_on_timeout=True,
                 message=f"{self._name} to meet custom state",
             )
             return
@@ -85,21 +90,23 @@ class Element(CoreBaseElement):
     def _browser(self) -> BrowserService:
         from tquality_selenium.browser import BrowserService
         from tquality_selenium.container import SeleniumServices
+
         return SeleniumServices.get_service(BrowserService)
 
     @property
     def _log(self) -> Logger:
-        from tquality_core import Logger
+        from tquality_core import step
 
-        from tquality_selenium.container import SeleniumServices
-        return SeleniumServices.get_service(Logger)
+        return step.resolve()
 
     @property
+    @typing.override
     def wait(self) -> ElementWaiter[Self]:
         """Ожидания, привязанные к этому элементу. Каждый метод возвращает
         `bool` (см. `ElementWaiter`)."""
         from tquality_selenium.container import SeleniumServices
         from tquality_selenium.services.driver_waiter import DriverWaiter
+
         return ElementWaiter(SeleniumServices.get_service(DriverWaiter), self)
 
     @property
@@ -110,7 +117,8 @@ class Element(CoreBaseElement):
         не container-lookup); резолвер элемента ленивый - stale-reference
         не возникает."""
         return ElementJsActions(
-            self._find, driver_getter=lambda: self._browser.driver,
+            self._find,
+            driver_getter=lambda: self._browser.driver,
         )
 
     @property
@@ -118,7 +126,9 @@ class Element(CoreBaseElement):
         """BiDi-действия, привязанные к этому элементу. Пример:
         `button.bidi_actions.capture_screenshot()`."""
         return BiDiElementActions(
-            self._find, driver_getter=lambda: self._browser.driver,
+            self._find,
+            driver_getter=lambda: self._browser.driver,
+            element=self,
         )
 
     def _find(self) -> WebElement:
@@ -126,10 +136,12 @@ class Element(CoreBaseElement):
         return result
 
     @property
+    @typing.override
     def text(self) -> str:
         return self._find().text
 
     @property
+    @typing.override
     def is_displayed(self) -> bool:
         try:
             return self._find().is_displayed()
@@ -137,11 +149,13 @@ class Element(CoreBaseElement):
             return False
 
     @property
+    @typing.override
     def is_present(self) -> bool:
         elements = self._browser.find_elements(*self._by)
         return len(elements) > 0
 
     @property
+    @typing.override
     def is_enabled(self) -> bool:
         return self._find().is_enabled()
 
@@ -150,7 +164,10 @@ class Element(CoreBaseElement):
         """Bounding box элемента (x, y, width, height) во вьюпорте."""
         r = self._find().rect
         return ElementRect(
-            x=r["x"], y=r["y"], width=r["width"], height=r["height"],
+            x=r["x"],
+            y=r["y"],
+            width=r["width"],
+            height=r["height"],
         )
 
     @property
@@ -165,6 +182,7 @@ class Element(CoreBaseElement):
         loc = self._find().location
         return ElementLocation(x=loc["x"], y=loc["y"])
 
+    @typing.override
     def get_attribute(self, attr: str) -> str | None:
         value = self._find().get_attribute(attr)
         return value if value is None else str(value)
@@ -228,6 +246,7 @@ class Element(CoreBaseElement):
         обращении, stale-reference исключён.
         """
         from tquality_selenium.elements.shadow_root_proxy import ShadowRootProxy
+
         return ShadowRootProxy(parent_find=self._find)
 
     def screenshot(self) -> bytes:
@@ -258,6 +277,7 @@ class Element(CoreBaseElement):
         self.wait.until_invisible(timeout, raise_on_timeout=True)
         return self
 
+    @typing.override
     def click(self) -> None:
         self._log.info("Click: %s", self._name)
         self._await_state()

@@ -19,14 +19,15 @@ class MyPage(BaseForm):
 мешает (нестандартный web-компонент, кастомные bounds, своё условие
 готовности) - передайте свой.
 """
+
 from __future__ import annotations
 
 from tquality_core import ElementState, FormattableElement, StateSpec
 
-from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.button import Button
 from tquality_selenium.elements.by import By
 from tquality_selenium.elements.checkbox import CheckBox
+from tquality_selenium.elements.element import Element
 from tquality_selenium.elements.input import Input
 from tquality_selenium.elements.label import Label
 from tquality_selenium.services.lazy_elements import LazyElements
@@ -59,25 +60,33 @@ class FormattableElementFactory:
         return FormattableElement(by, lambda b: element_cls(b, name, state=state), name)
 
     def button(
-        self, by: By, name: str = "",
+        self,
+        by: By,
+        name: str = "",
         state: StateSpec = ElementState.CLICKABLE,
     ) -> FormattableElement[Button, By]:
         return FormattableElement(by, lambda b: Button(b, name, state=state), name)
 
     def checkbox(
-        self, by: By, name: str = "",
+        self,
+        by: By,
+        name: str = "",
         state: StateSpec = ElementState.CLICKABLE,
     ) -> FormattableElement[CheckBox, By]:
         return FormattableElement(by, lambda b: CheckBox(b, name, state=state), name)
 
     def label(
-        self, by: By, name: str = "",
+        self,
+        by: By,
+        name: str = "",
         state: StateSpec = ElementState.DISPLAYED,
     ) -> FormattableElement[Label, By]:
         return FormattableElement(by, lambda b: Label(b, name, state=state), name)
 
     def input(
-        self, by: By, name: str = "",
+        self,
+        by: By,
+        name: str = "",
         state: StateSpec = ElementState.DISPLAYED,
     ) -> FormattableElement[Input, By]:
         return FormattableElement(by, lambda b: Input(b, name, state=state), name)
@@ -101,25 +110,33 @@ class ElementFactory:
         return element_cls(by, name, state=state)
 
     def button(
-        self, by: By, name: str = "",
+        self,
+        by: By,
+        name: str = "",
         state: StateSpec = ElementState.CLICKABLE,
     ) -> Button:
         return Button(by, name, state=state)
 
     def checkbox(
-        self, by: By, name: str = "",
+        self,
+        by: By,
+        name: str = "",
         state: StateSpec = ElementState.CLICKABLE,
     ) -> CheckBox:
         return CheckBox(by, name, state=state)
 
     def label(
-        self, by: By, name: str = "",
+        self,
+        by: By,
+        name: str = "",
         state: StateSpec = ElementState.DISPLAYED,
     ) -> Label:
         return Label(by, name, state=state)
 
     def input(
-        self, by: By, name: str = "",
+        self,
+        by: By,
+        name: str = "",
         state: StateSpec = ElementState.DISPLAYED,
     ) -> Input:
         return Input(by, name, state=state)
@@ -155,25 +172,37 @@ class ElementFactory:
         return element_cls(LocatorUtils.join_xpath(parent.by, by), name, state=state)
 
     def get_child_button(
-        self, parent: Element, by: By, name: str = "",
+        self,
+        parent: Element,
+        by: By,
+        name: str = "",
         state: StateSpec = ElementState.CLICKABLE,
     ) -> Button:
         return Button(LocatorUtils.join_xpath(parent.by, by), name, state=state)
 
     def get_child_checkbox(
-        self, parent: Element, by: By, name: str = "",
+        self,
+        parent: Element,
+        by: By,
+        name: str = "",
         state: StateSpec = ElementState.CLICKABLE,
     ) -> CheckBox:
         return CheckBox(LocatorUtils.join_xpath(parent.by, by), name, state=state)
 
     def get_child_label(
-        self, parent: Element, by: By, name: str = "",
+        self,
+        parent: Element,
+        by: By,
+        name: str = "",
         state: StateSpec = ElementState.DISPLAYED,
     ) -> Label:
         return Label(LocatorUtils.join_xpath(parent.by, by), name, state=state)
 
     def get_child_input(
-        self, parent: Element, by: By, name: str = "",
+        self,
+        parent: Element,
+        by: By,
+        name: str = "",
         state: StateSpec = ElementState.DISPLAYED,
     ) -> Input:
         return Input(LocatorUtils.join_xpath(parent.by, by), name, state=state)
@@ -188,21 +217,33 @@ class ElementFactory:
         return LazyElements(element_cls, LocatorUtils.join_xpath(parent.by, by), name_prefix)
 
     def get_child_buttons(
-        self, parent: Element, by: By, name_prefix: str = "",
+        self,
+        parent: Element,
+        by: By,
+        name_prefix: str = "",
     ) -> LazyElements[Button]:
         return self.get_child_elements(Button, parent, by, name_prefix)
 
     def get_child_checkboxes(
-        self, parent: Element, by: By, name_prefix: str = "",
+        self,
+        parent: Element,
+        by: By,
+        name_prefix: str = "",
     ) -> LazyElements[CheckBox]:
         return self.get_child_elements(CheckBox, parent, by, name_prefix)
 
     def get_child_labels(
-        self, parent: Element, by: By, name_prefix: str = "",
+        self,
+        parent: Element,
+        by: By,
+        name_prefix: str = "",
     ) -> LazyElements[Label]:
         return self.get_child_elements(Label, parent, by, name_prefix)
 
     def get_child_inputs(
-        self, parent: Element, by: By, name_prefix: str = "",
+        self,
+        parent: Element,
+        by: By,
+        name_prefix: str = "",
     ) -> LazyElements[Input]:
         return self.get_child_elements(Input, parent, by, name_prefix)
