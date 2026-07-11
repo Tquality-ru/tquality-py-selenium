@@ -105,19 +105,9 @@ class SeleniumServices(CoreServices):
     фабрики) - добавлены здесь.
     """
 
-    # testlocal: пересобирается под каждый тест. Per-test плагин ядра смещает
-    # `config_search_dir` на директорию теста, а бандл-плагин static-di сбрасывает
-    # testlocal-провайдеры после теста - поэтому `SeleniumConfig()` резолвится под
-    # правильный `config.json5` сам, без ручного rebuild/override.
     config: SeleniumConfig = TestContextSingleton(SeleniumConfig)
-    # testlocal: браузер живёт ровно один тест (переиспользования сессии между
-    # тестами не бывает). Бандл-плагин static-di дропает инстанс после теста -
-    # ручной reset в фикстуре не нужен, достаточно `.quit()` закрыть сессию.
+
     browser: BrowserService = TestContextSingleton(BrowserService, config=config)
-    # WebDriver текущего `browser`, резолвится лениво на каждый доступ (свежая
-    # сессия). Driver-провайдеры ниже берут его через `Delegate(driver)` - так
-    # `@copy` перевязывает их на `browser` подкласса, а `availability_check`
-    # гарантирует, что доступ к `.driver` идёт только при запущенной сессии.
     driver: WebDriver = Callable(operator.attrgetter("driver"), browser)
     screenshot_provider: SeleniumScreenshotProvider = Singleton(
         SeleniumScreenshotProvider,
@@ -144,17 +134,12 @@ class SeleniumServices(CoreServices):
         ignored_exceptions=(NoSuchElementException, StaleElementReferenceException),
         default_raise_cls=TimeoutException,
     )
-    # testlocal: держит per-test `waiter` (значение) + driver-резолвер, поэтому
-    # пересобирается под каждый тест вместе с waiter/browser.
     driver_waiter: DriverWaiter = TestContextSingleton(
         DriverWaiter,
         waiter=waiter,
         driver_resolver=Delegate(driver),
     )
     element_factory: ElementFactory = Singleton(ElementFactory)
-    # Инъекция резолверов (не значений) через `Delegate`: driver/logger/waiter -
-    # testlocal, поэтому фабрика/менеджер берут актуальный per-test экземпляр, а
-    # `@copy` перевязывает инъекции на слоты подкласса (следуют за leaf-контейнером).
     collection_factory: CollectionFactory = Singleton(
         CollectionFactory,
         driver_resolver=Delegate(driver),
